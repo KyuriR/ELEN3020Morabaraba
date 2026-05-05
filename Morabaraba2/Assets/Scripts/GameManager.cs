@@ -156,6 +156,9 @@ public class GameManager : MonoBehaviourPunCallbacks
         if (player == 1) playerOnePlacedCows++;
         else playerTwoPlacedCows++;
 
+        //Sound 
+        SoundManager.PlayValidMove();
+
         List<MillDetector.Mill> formedMills =
             millDetector.CheckMillOnPlacement(nodeID, player, occupiedNodes);
 
@@ -229,6 +232,8 @@ public class GameManager : MonoBehaviourPunCallbacks
         if (occupiedNodes.ContainsKey(fromNodeID)) occupiedNodes.Remove(fromNodeID);
         occupiedNodes[toNodeID] = player;
 
+        SoundManager.PlayValidMove(); //cow successefully moved sound
+
         List<MillDetector.Mill> formedMills =
             millDetector.CheckMillOnPlacement(toNodeID, player, occupiedNodes);
 
@@ -290,7 +295,12 @@ public class GameManager : MonoBehaviourPunCallbacks
     {
         if (gameOver) return;
         if (!isRemovalPhase) return;
-        if (!currentRemovableCows.Contains(nodeID)) { Debug.Log("That cow is protected."); return; }
+        if (!currentRemovableCows.Contains(nodeID)) 
+        { 
+            Debug.Log("That cow is protected."); 
+            SoundManager.PlayInvalidMove(); //protected cow sound
+            return; 
+        }
 
         if (!PhotonNetwork.IsConnected)
         {
@@ -317,6 +327,8 @@ public class GameManager : MonoBehaviourPunCallbacks
             Destroy(cowGameObjects[nodeID]);
             cowGameObjects.Remove(nodeID);
         }
+
+        SoundManager.PlayRemoval(); //cow removed sound
 
         BoardNode node = GetNodeByID(nodeID);
         if (node != null) node.isOccupied = false;
