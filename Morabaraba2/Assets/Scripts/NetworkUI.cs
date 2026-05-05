@@ -5,124 +5,172 @@ using UnityEngine.UI;
 using TMPro;
 
 /// <summary>
-/// Lobby screen. Three ways to play:
-///   1. Host — creates a private room, shows a code to share
-///   2. Join by code — Player 2 types the code to join a specific room
-///   3. Quick Join — automatically finds any open room (meets the
-///      "just connect and play" requirement from the project brief)
+/// Lobby scene — connects to Photon and lets players host, join by code,
+/// or quick-join (auto-matchmaking).
 ///
-/// INSPECTOR SETUP:
-///   - Attach to a GameObject in LobbyScene
-///   - Assign all serialized fields
-///   - PhotonServerSettings must have your App ID set
+/// SCENE HIERARCHY SETUP:
+///
+/// Canvas
+///   BackgroundImage              (Image - your background sprite)
+///   HeaderPanel
+///     TitleText                  (TextMeshProUGUI - "MORABARABA")
+///     WelcomeText                (TextMeshProUGUI - "Welcome, [username]!")
+///     LogoutButton               (Button - "Logout")
+///
+///   ConnectionPanel              (shown while connecting)
+///     ConnectingText             (TextMeshProUGUI - "Connecting to server...")
+///     SpinnerImage               (Image - optional loading spinner)
+///
+///   LobbyPanel                   (shown once connected)
+///     PlayerNameInput            (TMP_InputField - pre-filled with username)
+///
+///     QuickJoinSection
+///       QuickJoinTitle           (TextMeshProUGUI - "Quick Play")
+///       QuickJoinDescription     (TextMeshProUGUI - "Find an opponent automatically")
+///       QuickJoinButton          (Button - "Find Game")
+///
+///     Divider                    (Image - horizontal line)
+///
+///     HostSection
+///       HostTitle                (TextMeshProUGUI - "Create Private Game")
+///       HostButton               (Button - "Host Game")
+///       RoomCodeDisplay          (TextMeshProUGUI - shows code after hosting)
+///
+///     JoinSection
+///       JoinTitle                (TextMeshProUGUI - "Join Private Game")
+///       RoomCodeInput            (TMP_InputField - "Enter room code")
+///       JoinButton               (Button - "Join Game")
+///
+///     StatusText                 (TextMeshProUGUI - connection messages)
+///
+///     LocalPlayButton            (Button - "Play Local (Hot-Seat)")
 /// </summary>
 public class NetworkUI : MonoBehaviourPunCallbacks
 {
-    [Header("UI Elements")]
+    [Header("Panels")]
+    [SerializeField] private GameObject connectionPanel;
+    [SerializeField] private GameObject lobbyPanel;
+
+    [Header("Header")]
+    [SerializeField] private TextMeshProUGUI welcomeText;
+    [SerializeField] private Button logoutButton;
+
+    [Header("Lobby UI")]
+    [SerializeField] private TMP_InputField playerNameInput;
+    [SerializeField] private Button quickJoinButton;
     [SerializeField] private Button hostButton;
     [SerializeField] private Button joinButton;
-    [SerializeField] private Button quickJoinButton;          // Auto-finds any open game
-    [SerializeField] private TMP_InputField roomCodeInput;    // For joining by code
-    [SerializeField] private TMP_InputField playerNameInput;  // Player name entry
+    [SerializeField] private Button localPlayButton;
+    [SerializeField] private TMP_InputField roomCodeInput;
+    [SerializeField] private TextMeshProUGUI roomCodeDisplay;
     [SerializeField] private TextMeshProUGUI statusText;
-    [SerializeField] private TextMeshProUGUI roomCodeDisplay; // Shows code to host
 
+    private string loggedInUsername;
+
+    // ── Lifecycle ──────────────────────────────────────────────────────────
     private void Start()
     {
-        statusText.text = "Connecting to server...";
-        SetButtonsInteractable(false);
+        // Get logged in username
+        loggedInUsername = PlayerPrefs.GetString("LoggedInUsername", "Player");
 
+        // Show welcome message
+        if (welcomeText != null)
+            welcomeText.text = "Welcome, " + loggedInUsername + "!";
+
+        // Pre-fill name input
+        if (playerNameInput != null)
+            playerNameInput.text = loggedInUsername;
+
+        // Show connecting panel while we connect
+        ShowConnecting(true);
+
+        // Wire buttons
+        quickJoinButton.onClick.AddListener(QuickJoin);
+        hostButton.onClick.AddListener(HostGame);
+        joinButton.onClick.AddListener(JoinByCode);
+        localPlayButton.onClick.AddListener(PlayLocal);
+        if (logoutButton != null) logoutButton.onClick.AddListener(Logout);
+
+        // Connect to Photon
         PhotonNetwork.AutomaticallySyncScene = true;
         PhotonNetwork.ConnectUsingSettings();
 
-        hostButton.onClick.AddListener(HostGame);
-        joinButton.onClick.AddListener(JoinByCode);
-        quickJoinButton.onClick.AddListener(QuickJoin);
+        SetButtonsInteractable(false);
     }
 
+    // ── Photon Callbacks ───────────────────────────────────────────────────
     public override void OnConnectedToMaster()
     {
-        statusText.text = "Connected. Enter your name to play.";
+        ShowConnecting(false);
+        SetStatus("Connected. Ready to play!", true);
         SetButtonsInteractable(true);
         PhotonNetwork.JoinLobby();
-    }
-
-    // ── Host ──────────────────────────────────────────────────────────────
-    private void HostGame()
-    {
-        if (!SetName()) return;
-
-        string roomCode = Random.Range(1000, 9999).ToString();
-
-        RoomOptions options = new RoomOptions
-        {
-            MaxPlayers = 2,
-            IsVisible = true,   // Visible so Quick Join can find it
-            IsOpen = true
-        };
-
-        statusText.text = "Creating room...";
-        SetButtonsInteractable(false);
-
-        PhotonNetwork.CreateRoom(roomCode, options);
     }
 
     public override void OnCreatedRoom()
     {
         string code = PhotonNetwork.CurrentRoom.Name;
-        roomCodeDisplay.text = "Room Code: " + code;
-        statusText.text = "Waiting for opponent...\nShare code: " + code;
+        if (roomCodeDisplay != null)
+            roomCodeDisplay.text = "Room Code: " + code + "\nShare this with your opponent.";
+        SetStatus("Waiting for opponent...", true);
     }
 
     public override void OnCreateRoomFailed(short returnCode, string message)
     {
-        statusText.text = "Failed to create room: " + message;
+        SetStatus("Failed to create room. Try again.", false);
         SetButtonsInteractable(true);
     }
 
-    // ── Join by code ──────────────────────────────────────────────────────
-    private void JoinByCode()
+    public override void OnPlayerEnteredRoom(Player newPlayer)
     {
-        string code = roomCodeInput.text.Trim();
-        if (string.IsNullOrEmpty(code))
+        if (PhotonNetwork.CurrentRoom.PlayerCount == 2 && PhotonNetwork.IsMasterClient)
         {
-            statusText.text = "Please enter a room code.";
-            return;
+            SetStatus("Opponent found! Starting game...", true);
+            PhotonNetwork.LoadLevel("GameScene");
         }
-        if (!SetName()) return;
+    }
 
-        statusText.text = "Joining room " + code + "...";
-        SetButtonsInteractable(false);
-        PhotonNetwork.JoinRoom(code);
+    public override void OnJoinedRoom()
+    {
+        PlayerPrefs.SetInt("MyPlayerNumber", 2);
+        SetStatus("Joined! Starting game...", true);
     }
 
     public override void OnJoinRoomFailed(short returnCode, string message)
     {
-        statusText.text = "Could not join. Check the code and try again.";
+        SetStatus("Could not join. Check the room code and try again.", false);
         SetButtonsInteractable(true);
     }
 
-    // ── Quick Join (auto-matchmaking) ─────────────────────────────────────
-    // Finds any available open room automatically.
-    // If no room exists, creates one and waits for an opponent.
-    // This satisfies the requirement for players to just "log in and play".
+    public override void OnJoinRandomFailed(short returnCode, string message)
+    {
+        SetStatus("No open games found. Creating one for you...\nWaiting for opponent.", true);
+        string roomCode = Random.Range(1000, 9999).ToString();
+        RoomOptions options = new RoomOptions { MaxPlayers = 2, IsVisible = true, IsOpen = true };
+        PhotonNetwork.CreateRoom(roomCode, options);
+    }
+
+    public override void OnDisconnected(DisconnectCause cause)
+    {
+        ShowConnecting(true);
+        SetButtonsInteractable(false);
+        SetStatus("Disconnected. Reconnecting...", false);
+        PhotonNetwork.ConnectUsingSettings();
+    }
+
+    // ── Button Actions ─────────────────────────────────────────────────────
     private void QuickJoin()
     {
         if (!SetName()) return;
-
-        statusText.text = "Looking for a game...";
+        SetStatus("Looking for a game...", true);
         SetButtonsInteractable(false);
-
-        // Try to join a random open room
         PhotonNetwork.JoinRandomRoom();
     }
 
-    // Called when JoinRandomRoom finds no available rooms
-    public override void OnJoinRandomFailed(short returnCode, string message)
+    private void HostGame()
     {
-        statusText.text = "No open games found. Creating one for you...\nWaiting for opponent.";
+        if (!SetName()) return;
 
-        // No room available — create one and wait
         string roomCode = Random.Range(1000, 9999).ToString();
         RoomOptions options = new RoomOptions
         {
@@ -130,62 +178,80 @@ public class NetworkUI : MonoBehaviourPunCallbacks
             IsVisible = true,
             IsOpen = true
         };
+
+        SetStatus("Creating room...", true);
+        SetButtonsInteractable(false);
         PhotonNetwork.CreateRoom(roomCode, options);
     }
 
-    // ── Both players connected ────────────────────────────────────────────
-    public override void OnPlayerEnteredRoom(Player newPlayer)
+    private void JoinByCode()
     {
-        if (PhotonNetwork.CurrentRoom.PlayerCount == 2 && PhotonNetwork.IsMasterClient)
+        string code = roomCodeInput.text.Trim();
+        if (string.IsNullOrEmpty(code))
         {
-            statusText.text = "Opponent found! Starting game...";
-            PhotonNetwork.LoadLevel("GameScene");
+            SetStatus("Please enter a room code.", false);
+            return;
         }
-    }
+        if (!SetName()) return;
 
-    public override void OnJoinedRoom()
-    {
-        // Player 2 joined — save their number
-        PlayerPrefs.SetInt("MyPlayerNumber", 2);
-        PlayerPrefs.SetString("P2", PhotonNetwork.NickName);
-        statusText.text = "Joined! Waiting for game to start...";
-
-        // If room is already full when we join (edge case), game starts via host
-    }
-
-    // ── Disconnect handling ───────────────────────────────────────────────
-    public override void OnDisconnected(DisconnectCause cause)
-    {
-        statusText.text = "Disconnected. Reconnecting...";
+        SetStatus("Joining room " + code + "...", true);
         SetButtonsInteractable(false);
-        PhotonNetwork.ConnectUsingSettings();
+        PhotonNetwork.JoinRoom(code);
+    }
+
+    private void PlayLocal()
+    {
+        string name = playerNameInput != null ? playerNameInput.text.Trim() : loggedInUsername;
+        if (string.IsNullOrEmpty(name)) name = "Player 1";
+
+        PlayerPrefs.SetString("P1", name);
+        PlayerPrefs.SetString("P2", "Player 2");
+        PlayerPrefs.SetInt("MyPlayerNumber", 0);
+
+        UnityEngine.SceneManagement.SceneManager.LoadScene("GameScene");
+    }
+
+    private void Logout()
+    {
+        PlayerPrefs.DeleteKey("LoggedInEmail");
+        PlayerPrefs.DeleteKey("LoggedInUsername");
+        if (PhotonNetwork.IsConnected) PhotonNetwork.Disconnect();
+        UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenu");
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────
     private bool SetName()
     {
-        string name = playerNameInput.text.Trim();
+        string name = playerNameInput != null ? playerNameInput.text.Trim() : loggedInUsername;
         if (string.IsNullOrEmpty(name))
         {
-            statusText.text = "Please enter your name first.";
+            SetStatus("Please enter your name.", false);
             return false;
         }
         PhotonNetwork.NickName = name;
-        PlayerPrefs.SetString("MyName", name);
-
-        // Host is always Player 1
-        if (PhotonNetwork.IsMasterClient || !PhotonNetwork.InRoom)
-        {
-            PlayerPrefs.SetString("P1", name);
-            PlayerPrefs.SetInt("MyPlayerNumber", 1);
-        }
+        PlayerPrefs.SetString("P1", name);
+        PlayerPrefs.SetInt("MyPlayerNumber", 1);
         return true;
+    }
+
+    private void SetStatus(string message, bool good)
+    {
+        if (statusText == null) return;
+        statusText.text = message;
+        statusText.color = good ? Color.green : Color.red;
+    }
+
+    private void ShowConnecting(bool connecting)
+    {
+        if (connectionPanel != null) connectionPanel.SetActive(connecting);
+        if (lobbyPanel != null) lobbyPanel.SetActive(!connecting);
     }
 
     private void SetButtonsInteractable(bool value)
     {
-        hostButton.interactable = value;
-        joinButton.interactable = value;
-        quickJoinButton.interactable = value;
+        if (quickJoinButton != null) quickJoinButton.interactable = value;
+        if (hostButton != null) hostButton.interactable = value;
+        if (joinButton != null) joinButton.interactable = value;
+        if (localPlayButton != null) localPlayButton.interactable = value;
     }
 }
