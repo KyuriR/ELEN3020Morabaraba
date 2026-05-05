@@ -34,18 +34,23 @@ public class CowRemovalClickHandler : MonoBehaviour
 
     void Update()
     {
-        if (!removalModeActive) return;
+        if (!removalModeActive)
+        {
+            Debug.Log("Removal mode NOT ACTIVE ");
+            return;
+        }
 
         if (Input.GetMouseButtonDown(0))
         {
+            
             Vector3 worldPosition = mainCamera.ScreenToWorldPoint(Input.mousePosition);
             worldPosition.z = 0;
 
-            RaycastHit2D hit = Physics2D.Raycast(worldPosition, Vector2.zero);
+            Collider2D hit = Physics2D.OverlapPoint(worldPosition);
 
-            if (hit.collider != null && hit.collider.CompareTag("Cow"))
+            if (hit != null && hit.CompareTag("Cow"))
             {
-                Cow cow = hit.collider.GetComponent<Cow>();
+                Cow cow = hit.GetComponent<Cow>();
                 BoardNode node = cow.GetPlacedNode();
 
                 if (node != null && removableNodes.Contains(node.nodeID))

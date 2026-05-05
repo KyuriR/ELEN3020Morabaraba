@@ -15,6 +15,9 @@ public class GameManager : MonoBehaviourPunCallbacks
 
     private Dictionary<int, int> occupiedNodes = new Dictionary<int, int>();
     private Dictionary<int, GameObject> cowGameObjects = new Dictionary<int, GameObject>();
+    //Fix Colour issue 
+    private Dictionary<GameObject, Color> originalColours = new Dictionary<GameObject, Color>();
+        
     private List<int> currentRemovableCows = new List<int>();
 
     private MillDetector millDetector;
@@ -69,6 +72,8 @@ public class GameManager : MonoBehaviourPunCallbacks
 
     private void Start()
     {
+        Debug.Log("RemovalHandler found: " + (removalHandler != null));
+        
         millDetector = GetComponent<MillDetector>();
         if (millDetector == null) millDetector = gameObject.AddComponent<MillDetector>();
 
@@ -84,6 +89,11 @@ public class GameManager : MonoBehaviourPunCallbacks
         if (quitButton != null) quitButton.onClick.AddListener(OnQuit);
     }
 
+    void OnDisable()
+    {
+        Debug.Log("Gamemanager disabled\n"+ System.Environment.StackTrace);
+    }
+
     // ── Testability ────────────────────────────────────────────────────────
     public void SetPlayerOneCows(int value) { playerOneTotalCows = value; }
     public void SetPlayerTwoCows(int value) { playerTwoTotalCows = value; }
@@ -94,7 +104,15 @@ public class GameManager : MonoBehaviourPunCallbacks
     public void RegisterPlacement(int player, int nodeID, GameObject cowObject)
     {
         if (gameOver) return;
-        if (cowObject != null) cowGameObjects[nodeID] = cowObject;
+        if (cowObject != null)
+        {
+            cowGameObjects[nodeID] = cowObject;
+            SpriteRenderer sr = cowObject.GetComponent<SpriteRenderer>();
+            if (sr != null && !originalColours.ContainsKey(cowObject))
+            {
+                originalColours[cowObject] = sr.color;
+            }
+        }
 
         if (!PhotonNetwork.IsConnected)
         {
@@ -109,7 +127,7 @@ public class GameManager : MonoBehaviourPunCallbacks
     {
         // Find cow GO on this client
         BoardNode node = GetNodeByID(nodeID);
-        if (node != null)
+       /* if (node != null)
         {
             Cow[] allCows = FindObjectsByType<Cow>(FindObjectsSortMode.None);
             foreach (Cow c in allCows)
@@ -121,7 +139,7 @@ public class GameManager : MonoBehaviourPunCallbacks
                     break;
                 }
             }
-        }
+        }*/
         ApplyPlacementLogic(player, nodeID);
     }
 
@@ -260,7 +278,12 @@ public class GameManager : MonoBehaviourPunCallbacks
         UpdateRemovalUI(true);
 
         if (MyPlayerNumber == player && removalHandler != null)
+        {
+            Debug.Log("trying to activate removal node whoop ");
             removalHandler.ActivateRemovalMode(currentRemovableCows);
+        }
+            
+            
     }
 
     public void RemoveCow(int nodeID)
@@ -285,6 +308,7 @@ public class GameManager : MonoBehaviourPunCallbacks
 
     private void ApplyRemovalLogic(int nodeID)
     {
+        List<int> previouslyHighlighted = new List<int>(currentRemovableCows);
         int playerToRemove = occupiedNodes.ContainsKey(nodeID) ? occupiedNodes[nodeID] : -1;
 
         // Destroy cow visually
@@ -304,9 +328,9 @@ public class GameManager : MonoBehaviourPunCallbacks
         occupiedNodes.Remove(nodeID);
 
         isRemovalPhase = false;
-        currentRemovableCows.Clear();
+        //currentRemovableCows.Clear();
 
-        HighlightRemovableCows(new List<int>(), false);
+        HighlightRemovableCows(previouslyHighlighted, false);
         UpdateRemovalUI(false);
 
         if (removalHandler != null) removalHandler.DeactivateRemovalMode();
@@ -333,6 +357,7 @@ public class GameManager : MonoBehaviourPunCallbacks
                     photonView.RPC("RPC_ShowWinScreen", RpcTarget.Others, winnerName);
             }
         }
+        currentRemovableCows.Clear();
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -412,8 +437,27 @@ public class GameManager : MonoBehaviourPunCallbacks
             if (kvp.Value == null) continue;
             SpriteRenderer sr = kvp.Value.GetComponent<SpriteRenderer>();
             if (sr == null) continue;
-            sr.color = (highlight && nodeIDs.Contains(kvp.Key)) ? Color.red : Color.white;
+           // sr.color = (highlight && nodeIDs.Contains(kvp.Key)) ? Color.red : Color.white;
+           if (highlight)
+           {
+               sr.color = nodeIDs.Contains(kvp.Key) ? Color.red : GetOriginalColour(kvp.Value);
+           }
+           else
+           {
+               sr.color = GetOriginalColour(kvp.Value);
+           }
         }
+    }
+
+    private Color GetOriginalColour(GameObject obj)
+    {
+        if (originalColours.ContainsKey(obj))
+        {
+            return originalColours[obj];
+            
+        }
+
+        return Color.white; //fallback 
     }
 
     // ══════════════════════════════════════════════════════════════════════
