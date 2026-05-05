@@ -1,13 +1,7 @@
+using Photon.Pun;
 using UnityEngine;
 using TMPro;
 
-/// <summary>
-/// Updates turn and cow count UI every frame.
-///
-/// INSPECTOR SETUP:
-///   - Attach to a UI Canvas GameObject in GameScene
-///   - Assign turnText (required) and cowCountText (optional)
-/// </summary>
 public class TurnUIManager : MonoBehaviour
 {
     [SerializeField] private TextMeshProUGUI turnText;
@@ -20,6 +14,14 @@ public class TurnUIManager : MonoBehaviour
     {
         player1Name = PlayerPrefs.GetString("P1", "Player 1");
         player2Name = PlayerPrefs.GetString("P2", "Player 2");
+
+        // In online mode, get names from Photon player list
+        if (PhotonNetwork.IsConnected && PhotonNetwork.PlayerList.Length >= 1)
+        {
+            player1Name = PhotonNetwork.PlayerList[0].NickName;
+            if (PhotonNetwork.PlayerList.Length >= 2)
+                player2Name = PhotonNetwork.PlayerList[1].NickName;
+        }
     }
 
     void Update()

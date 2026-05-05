@@ -1,16 +1,17 @@
 using System.Collections.Generic;
-using Mirror;
+using Photon.Pun;
+using Photon.Realtime;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using TMPro;
 using UnityEngine.UI;
 
-public class GameManager : NetworkBehaviour
+public class GameManager : MonoBehaviourPunCallbacks
 {
     public static GameManager Instance;
 
     // ── Game State ─────────────────────────────────────────────────────────
-    [SyncVar] public int currentPlayer = 1;
+    public int currentPlayer = 1;
 
     private Dictionary<int, int> occupiedNodes = new Dictionary<int, int>();
     private Dictionary<int, GameObject> cowGameObjects = new Dictionary<int, GameObject>();
@@ -19,8 +20,8 @@ public class GameManager : NetworkBehaviour
     private MillDetector millDetector;
     private CowRemovalClickHandler removalHandler;
 
-    [SyncVar] private bool isRemovalPhase = false;
-    [SyncVar] private int playerWhoFormedMill = 0;
+    private bool isRemovalPhase = false;
+    private int playerWhoFormedMill = 0;
     private List<MillDetector.Mill> currentMills = new List<MillDetector.Mill>();
 
     private int playerOneTotalCows = 12;
@@ -35,7 +36,7 @@ public class GameManager : NetworkBehaviour
     private bool gameOver = false;
 
     public enum GamePhase { Placement, Movement }
-    [SyncVar] private GamePhase currentPhase = GamePhase.Placement;
+    private GamePhase currentPhase = GamePhase.Placement;
 
     // ── UI ─────────────────────────────────────────────────────────────────
     [Header("Win Screen UI")]
@@ -49,15 +50,14 @@ public class GameManager : NetworkBehaviour
     [SerializeField] private TextMeshProUGUI removalIndicatorText;
 
     // ── Local player number ────────────────────────────────────────────────
+    // Online: MasterClient = Player 1, other client = Player 2
+    // Local:  returns currentPlayer so whoever's turn it is can drag
     public int MyPlayerNumber
     {
         get
         {
-            // Local hot-seat mode — no Mirror running at all
-            if (!NetworkClient.active && !NetworkServer.active)
-                return currentPlayer; // whoever's turn it is can drag
-            // Online mode — host = Player 1, client = Player 2
-            return NetworkServer.active ? 1 : 2;
+            if (!PhotonNetwork.IsConnected) return currentPlayer;
+            return PhotonNetwork.IsMasterClient ? 1 : 2;
         }
     }
 
@@ -67,7 +67,6 @@ public class GameManager : NetworkBehaviour
         Instance = this;
     }
 
-    // Start handles LOCAL mode initialisation (Mirror not running)
     private void Start()
     {
         millDetector = GetComponent<MillDetector>();
@@ -76,28 +75,6 @@ public class GameManager : NetworkBehaviour
         removalHandler = GetComponent<CowRemovalClickHandler>();
         if (removalHandler == null) removalHandler = gameObject.AddComponent<CowRemovalClickHandler>();
 
-        if (winPanel != null) winPanel.SetActive(false);
-        if (removalIndicatorText != null) removalIndicatorText.gameObject.SetActive(false);
-
-        UpdatePhaseUI();
-
-        if (rematchButton != null) rematchButton.onClick.AddListener(OnRematch);
-        if (quitButton != null) quitButton.onClick.AddListener(OnQuit);
-    }
-
-    // OnStartServer handles SERVER initialisation when Mirror IS running
-    public override void OnStartServer()
-    {
-        millDetector = GetComponent<MillDetector>();
-        if (millDetector == null) millDetector = gameObject.AddComponent<MillDetector>();
-
-        removalHandler = GetComponent<CowRemovalClickHandler>();
-        if (removalHandler == null) removalHandler = gameObject.AddComponent<CowRemovalClickHandler>();
-    }
-
-    // OnStartClient handles CLIENT initialisation when Mirror IS running
-    public override void OnStartClient()
-    {
         if (winPanel != null) winPanel.SetActive(false);
         if (removalIndicatorText != null) removalIndicatorText.gameObject.SetActive(false);
 
@@ -119,30 +96,18 @@ public class GameManager : NetworkBehaviour
         if (gameOver) return;
         if (cowObject != null) cowGameObjects[nodeID] = cowObject;
 
-        // Local mode — run logic directly
-        if (!NetworkClient.active && !NetworkServer.active)
+        if (!PhotonNetwork.IsConnected)
         {
             ApplyPlacementLogic(player, nodeID);
             return;
         }
-        CmdPlacement(player, nodeID);
+        photonView.RPC("RPC_Placement", RpcTarget.All, player, nodeID);
     }
 
-    [Command(requiresAuthority = false)]
-    private void CmdPlacement(int player, int nodeID)
+    [PunRPC]
+    private void RPC_Placement(int player, int nodeID)
     {
-        ApplyPlacementLogic(player, nodeID);
-        RpcPlacement(player, nodeID);
-    }
-
-    [ClientRpc]
-    private void RpcPlacement(int player, int nodeID)
-    {
-        occupiedNodes[nodeID] = player;
-        if (player == 1) playerOnePlacedCows++;
-        else playerTwoPlacedCows++;
-
-        // Find and store the cow GO on this client
+        // Find cow GO on this client
         BoardNode node = GetNodeByID(nodeID);
         if (node != null)
         {
@@ -157,12 +122,11 @@ public class GameManager : NetworkBehaviour
                 }
             }
         }
-        UpdatePhaseUI();
+        ApplyPlacementLogic(player, nodeID);
     }
 
     private void ApplyPlacementLogic(int player, int nodeID)
     {
-        // Safety check — ensure millDetector is initialised
         if (millDetector == null)
         {
             millDetector = GetComponent<MillDetector>();
@@ -186,10 +150,7 @@ public class GameManager : NetworkBehaviour
             int opponent = (player == 1) ? 2 : 1;
             currentRemovableCows = millDetector.GetRemovableOpponentCows(opponent, occupiedNodes);
 
-            if (!NetworkClient.active && !NetworkServer.active)
-                StartRemovalPhaseLocal(player);
-            else
-                RpcStartRemovalPhase(player, currentRemovableCows.ToArray());
+            StartRemovalPhase(player);
         }
         else if (!isRemovalPhase)
         {
@@ -206,24 +167,18 @@ public class GameManager : NetworkBehaviour
     {
         if (gameOver) return;
 
-        if (!NetworkClient.active && !NetworkServer.active)
+        if (!PhotonNetwork.IsConnected)
         {
             ApplyMovementLogic(player, fromNodeID, toNodeID);
             return;
         }
-        CmdMovement(player, fromNodeID, toNodeID);
+        photonView.RPC("RPC_Movement", RpcTarget.All, player, fromNodeID, toNodeID);
     }
 
-    [Command(requiresAuthority = false)]
-    private void CmdMovement(int player, int fromNodeID, int toNodeID)
+    [PunRPC]
+    private void RPC_Movement(int player, int fromNodeID, int toNodeID)
     {
-        ApplyMovementLogic(player, fromNodeID, toNodeID);
-        RpcMovement(player, fromNodeID, toNodeID);
-    }
-
-    [ClientRpc]
-    private void RpcMovement(int player, int fromNodeID, int toNodeID)
-    {
+        // Move cow visually on remote client
         BoardNode toNode = GetNodeByID(toNodeID);
         BoardNode fromNode = GetNodeByID(fromNodeID);
 
@@ -241,11 +196,18 @@ public class GameManager : NetworkBehaviour
 
         if (occupiedNodes.ContainsKey(fromNodeID)) occupiedNodes.Remove(fromNodeID);
         occupiedNodes[toNodeID] = player;
-        UpdatePhaseUI();
+
+        ApplyMovementLogic(player, fromNodeID, toNodeID);
     }
 
     private void ApplyMovementLogic(int player, int fromNodeID, int toNodeID)
     {
+        if (millDetector == null)
+        {
+            millDetector = GetComponent<MillDetector>();
+            if (millDetector == null) millDetector = gameObject.AddComponent<MillDetector>();
+        }
+
         if (occupiedNodes.ContainsKey(fromNodeID)) occupiedNodes.Remove(fromNodeID);
         occupiedNodes[toNodeID] = player;
 
@@ -261,10 +223,7 @@ public class GameManager : NetworkBehaviour
             int opponent = (player == 1) ? 2 : 1;
             currentRemovableCows = millDetector.GetRemovableOpponentCows(opponent, occupiedNodes);
 
-            if (!NetworkClient.active && !NetworkServer.active)
-                StartRemovalPhaseLocal(player);
-            else
-                RpcStartRemovalPhase(player, currentRemovableCows.ToArray());
+            StartRemovalPhase(player);
         }
         else if (!isRemovalPhase)
         {
@@ -286,30 +245,16 @@ public class GameManager : NetworkBehaviour
         }
     }
 
-    // Local mode removal start
-    private void StartRemovalPhaseLocal(int player)
+    private void StartRemovalPhase(int player)
     {
         if (currentRemovableCows.Count == 0)
         {
+            Debug.LogWarning("No removable cows - skipping removal.");
             isRemovalPhase = false;
             currentPlayer = (currentPlayer == 1) ? 2 : 1;
             UpdatePhaseUI();
             return;
         }
-
-        HighlightRemovableCows(currentRemovableCows, true);
-        UpdateRemovalUI(true);
-
-        if (removalHandler != null)
-            removalHandler.ActivateRemovalMode(currentRemovableCows);
-    }
-
-    [ClientRpc]
-    private void RpcStartRemovalPhase(int player, int[] removableNodes)
-    {
-        currentRemovableCows = new List<int>(removableNodes);
-        isRemovalPhase = true;
-        playerWhoFormedMill = player;
 
         HighlightRemovableCows(currentRemovableCows, true);
         UpdateRemovalUI(true);
@@ -324,71 +269,25 @@ public class GameManager : NetworkBehaviour
         if (!isRemovalPhase) return;
         if (!currentRemovableCows.Contains(nodeID)) { Debug.Log("That cow is protected."); return; }
 
-        if (!NetworkClient.active && !NetworkServer.active)
+        if (!PhotonNetwork.IsConnected)
         {
             ApplyRemovalLogic(nodeID);
             return;
         }
-        CmdRemoveCow(nodeID);
+        photonView.RPC("RPC_RemoveCow", RpcTarget.All, nodeID);
     }
 
-    [Command(requiresAuthority = false)]
-    private void CmdRemoveCow(int nodeID)
+    [PunRPC]
+    private void RPC_RemoveCow(int nodeID)
     {
-        if (!occupiedNodes.ContainsKey(nodeID)) return;
-        int owner = occupiedNodes[nodeID];
-        if (owner == playerWhoFormedMill) return;
         ApplyRemovalLogic(nodeID);
-        RpcRemoveCow(nodeID);
-    }
-
-    [ClientRpc]
-    private void RpcRemoveCow(int nodeID)
-    {
-        ApplyRemovalVisuals(nodeID);
     }
 
     private void ApplyRemovalLogic(int nodeID)
     {
         int playerToRemove = occupiedNodes.ContainsKey(nodeID) ? occupiedNodes[nodeID] : -1;
-        if (playerToRemove == 1) playerOneTotalCows--;
-        else if (playerToRemove == 2) playerTwoTotalCows--;
 
-        UpdateFlyingPhase();
-        occupiedNodes.Remove(nodeID);
-
-        isRemovalPhase = false;
-        currentRemovableCows.Clear();
-        currentPlayer = (currentPlayer == 1) ? 2 : 1;
-
-        CheckPlacementPhaseComplete();
-
-        // In local mode also update visuals directly
-        if (!NetworkClient.active && !NetworkServer.active)
-            ApplyRemovalVisuals(nodeID);
-
-        // Check win
-        if (currentPhase == GamePhase.Movement)
-        {
-            int winner = 0;
-            if (playerOneTotalCows < 3) winner = 2;
-            else if (playerTwoTotalCows < 3) winner = 1;
-            if (winner != 0)
-            {
-                string winnerName = (winner == 1)
-                    ? PlayerPrefs.GetString("P1", "Player 1")
-                    : PlayerPrefs.GetString("P2", "Player 2");
-
-                if (!NetworkClient.active && !NetworkServer.active)
-                    ShowWinScreen(winnerName);
-                else
-                    RpcShowWinScreen(winnerName);
-            }
-        }
-    }
-
-    private void ApplyRemovalVisuals(int nodeID)
-    {
+        // Destroy cow visually
         if (cowGameObjects.ContainsKey(nodeID))
         {
             Destroy(cowGameObjects[nodeID]);
@@ -398,11 +297,42 @@ public class GameManager : NetworkBehaviour
         BoardNode node = GetNodeByID(nodeID);
         if (node != null) node.isOccupied = false;
 
+        if (playerToRemove == 1) playerOneTotalCows--;
+        else if (playerToRemove == 2) playerTwoTotalCows--;
+
+        UpdateFlyingPhase();
+        occupiedNodes.Remove(nodeID);
+
+        isRemovalPhase = false;
+        currentRemovableCows.Clear();
+
         HighlightRemovableCows(new List<int>(), false);
         UpdateRemovalUI(false);
-        UpdatePhaseUI();
 
         if (removalHandler != null) removalHandler.DeactivateRemovalMode();
+
+        currentPlayer = (currentPlayer == 1) ? 2 : 1;
+        CheckPlacementPhaseComplete();
+        UpdatePhaseUI();
+
+        // Check win
+        if (currentPhase == GamePhase.Movement)
+        {
+            int winner = 0;
+            if (playerOneTotalCows < 3) winner = 2;
+            else if (playerTwoTotalCows < 3) winner = 1;
+
+            if (winner != 0)
+            {
+                string winnerName = (winner == 1)
+                    ? PlayerPrefs.GetString("P1", "Player 1")
+                    : PlayerPrefs.GetString("P2", "Player 2");
+                ShowWinScreen(winnerName);
+
+                if (PhotonNetwork.IsConnected)
+                    photonView.RPC("RPC_ShowWinScreen", RpcTarget.Others, winnerName);
+            }
+        }
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -412,6 +342,8 @@ public class GameManager : NetworkBehaviour
     {
         player1Flying = (playerOneTotalCows == 3 && currentPhase == GamePhase.Movement);
         player2Flying = (playerTwoTotalCows == 3 && currentPhase == GamePhase.Movement);
+        if (player1Flying) Debug.Log("Player 1 is now flying!");
+        if (player2Flying) Debug.Log("Player 2 is now flying!");
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -429,6 +361,8 @@ public class GameManager : NetworkBehaviour
                 ? PlayerPrefs.GetString("P1", "Player 1")
                 : PlayerPrefs.GetString("P2", "Player 2");
             ShowWinScreen(winnerName);
+            if (PhotonNetwork.IsConnected)
+                photonView.RPC("RPC_ShowWinScreen", RpcTarget.Others, winnerName);
         }
         return winner;
     }
@@ -443,8 +377,8 @@ public class GameManager : NetworkBehaviour
         }
     }
 
-    [ClientRpc]
-    private void RpcShowWinScreen(string winnerName)
+    [PunRPC]
+    private void RPC_ShowWinScreen(string winnerName)
     {
         ShowWinScreen(winnerName);
     }
@@ -465,9 +399,7 @@ public class GameManager : NetworkBehaviour
         if (removalIndicatorText == null) return;
         removalIndicatorText.gameObject.SetActive(active);
         if (!active) return;
-
-        bool isMyTurn = (playerWhoFormedMill == MyPlayerNumber)
-                     || (!NetworkClient.active && !NetworkServer.active);
+        bool isMyTurn = !PhotonNetwork.IsConnected || (playerWhoFormedMill == MyPlayerNumber);
         removalIndicatorText.text = isMyTurn
             ? "Click an opponent's cow to remove it!"
             : "Opponent is removing one of your cows...";
@@ -489,16 +421,22 @@ public class GameManager : NetworkBehaviour
     // ══════════════════════════════════════════════════════════════════════
     private void OnRematch()
     {
-        if (NetworkServer.active)
-            NetworkManager.singleton.ServerChangeScene("GameScene");
-        else
+        if (PhotonNetwork.IsConnected && PhotonNetwork.IsMasterClient)
+            PhotonNetwork.LoadLevel("GameScene");
+        else if (!PhotonNetwork.IsConnected)
             SceneManager.LoadScene("GameScene");
     }
 
     private void OnQuit()
     {
-        if (NetworkServer.active || NetworkClient.active)
-            NetworkManager.singleton.StopHost();
+        if (PhotonNetwork.IsConnected)
+            PhotonNetwork.LeaveRoom();
+        else
+            SceneManager.LoadScene("LobbyScene");
+    }
+
+    public override void OnLeftRoom()
+    {
         SceneManager.LoadScene("LobbyScene");
     }
 

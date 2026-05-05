@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using Mirror;
+using Photon.Pun;
 using UnityEngine;
 
 public class Cow : MonoBehaviour
@@ -35,14 +35,11 @@ public class Cow : MonoBehaviour
     {
         if (GameManager.Instance.IsRemovalPhase()) return;
 
-        // ── Ownership guard ────────────────────────────────────────────
-        // Online mode: only let the local player interact with their own cows
-        // Local mode: NetworkClient and NetworkServer are both inactive,
-        //             so we skip the ownership check entirely
-        bool isOnline = NetworkClient.active || NetworkServer.active;
-        if (isOnline && playerNumber != GameManager.Instance.MyPlayerNumber) return;
+        // Online mode: only interact with your own cows
+        // Local mode: PhotonNetwork.IsConnected is false, skip ownership check
+        if (PhotonNetwork.IsConnected && playerNumber != GameManager.Instance.MyPlayerNumber)
+            return;
 
-        // Turn check — always applies
         if (GameManager.Instance.GetCurrentPlayer() != playerNumber)
         {
             Debug.Log("Not Player " + playerNumber + "'s turn");
@@ -131,15 +128,12 @@ public class Cow : MonoBehaviour
             placedNode = hoveredNode;
 
             SoundEffectsPlayer.PlayValidMove();
-            Debug.Log("Cow moved from " + oldNodeID + " to " + placedNode.nodeID);
-
             GameManager.Instance.RegisterMovement(playerNumber, oldNodeID, placedNode.nodeID, gameObject);
         }
         else
         {
             ReturnToPreviousNode();
             SoundEffectsPlayer.PlayInvalidMove();
-            Debug.Log("Invalid movement.");
         }
     }
 
