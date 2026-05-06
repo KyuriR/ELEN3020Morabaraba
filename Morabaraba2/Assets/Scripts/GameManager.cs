@@ -9,15 +9,15 @@ using UnityEngine.UI;
 public class GameManager : MonoBehaviourPunCallbacks
 {
     public static GameManager Instance;
-
-    // ── Game State ─────────────────────────────────────────────────────────
-    public int currentPlayer = 1;
+// ── Game State ─────────────────────────────────────────────────────────
+public int currentPlayer = 1;
 
     private Dictionary<int, int> occupiedNodes = new Dictionary<int, int>();
     private Dictionary<int, GameObject> cowGameObjects = new Dictionary<int, GameObject>();
-    //Fix Colour issue 
+
+    // Fix Colour issue
     private Dictionary<GameObject, Color> originalColours = new Dictionary<GameObject, Color>();
-        
+
     private List<int> currentRemovableCows = new List<int>();
 
     private MillDetector millDetector;
@@ -53,8 +53,6 @@ public class GameManager : MonoBehaviourPunCallbacks
     [SerializeField] private TextMeshProUGUI removalIndicatorText;
 
     // ── Local player number ────────────────────────────────────────────────
-    // Online: MasterClient = Player 1, other client = Player 2
-    // Local:  returns currentPlayer so whoever's turn it is can drag
     public int MyPlayerNumber
     {
         get
@@ -73,30 +71,45 @@ public class GameManager : MonoBehaviourPunCallbacks
     private void Start()
     {
         Debug.Log("RemovalHandler found: " + (removalHandler != null));
-        
+
         millDetector = GetComponent<MillDetector>();
-        if (millDetector == null) millDetector = gameObject.AddComponent<MillDetector>();
+        if (millDetector == null)
+            millDetector = gameObject.AddComponent<MillDetector>();
 
         removalHandler = GetComponent<CowRemovalClickHandler>();
-        if (removalHandler == null) removalHandler = gameObject.AddComponent<CowRemovalClickHandler>();
+        if (removalHandler == null)
+            removalHandler = gameObject.AddComponent<CowRemovalClickHandler>();
 
-        if (winPanel != null) winPanel.SetActive(false);
-        if (removalIndicatorText != null) removalIndicatorText.gameObject.SetActive(false);
+        if (winPanel != null)
+            winPanel.SetActive(false);
+
+        if (removalIndicatorText != null)
+            removalIndicatorText.gameObject.SetActive(false);
 
         UpdatePhaseUI();
 
-        if (rematchButton != null) rematchButton.onClick.AddListener(OnRematch);
-        if (quitButton != null) quitButton.onClick.AddListener(OnQuit);
+        if (rematchButton != null)
+            rematchButton.onClick.AddListener(OnRematch);
+
+        if (quitButton != null)
+            quitButton.onClick.AddListener(OnQuit);
     }
 
     void OnDisable()
     {
-        Debug.Log("Gamemanager disabled\n"+ System.Environment.StackTrace);
+        Debug.Log("Gamemanager disabled\n" + System.Environment.StackTrace);
     }
 
     // ── Testability ────────────────────────────────────────────────────────
-    public void SetPlayerOneCows(int value) { playerOneTotalCows = value; }
-    public void SetPlayerTwoCows(int value) { playerTwoTotalCows = value; }
+    public void SetPlayerOneCows(int value)
+    {
+        playerOneTotalCows = value;
+    }
+
+    public void SetPlayerTwoCows(int value)
+    {
+        playerTwoTotalCows = value;
+    }
 
     // ══════════════════════════════════════════════════════════════════════
     // PLACEMENT
@@ -104,9 +117,11 @@ public class GameManager : MonoBehaviourPunCallbacks
     public void RegisterPlacement(int player, int nodeID, GameObject cowObject)
     {
         if (gameOver) return;
+
         if (cowObject != null)
         {
             cowGameObjects[nodeID] = cowObject;
+
             SpriteRenderer sr = cowObject.GetComponent<SpriteRenderer>();
             if (sr != null && !originalColours.ContainsKey(cowObject))
             {
@@ -119,27 +134,13 @@ public class GameManager : MonoBehaviourPunCallbacks
             ApplyPlacementLogic(player, nodeID);
             return;
         }
+
         photonView.RPC("RPC_Placement", RpcTarget.All, player, nodeID);
     }
 
     [PunRPC]
     private void RPC_Placement(int player, int nodeID)
     {
-        // Find cow GO on this client
-        BoardNode node = GetNodeByID(nodeID);
-       /* if (node != null)
-        {
-            Cow[] allCows = FindObjectsByType<Cow>(FindObjectsSortMode.None);
-            foreach (Cow c in allCows)
-            {
-                if (c.playerNumber == player &&
-                    Vector3.Distance(c.transform.position, node.transform.position) < 0.3f)
-                {
-                    cowGameObjects[nodeID] = c.gameObject;
-                    break;
-                }
-            }
-        }*/
         ApplyPlacementLogic(player, nodeID);
     }
 
@@ -148,15 +149,18 @@ public class GameManager : MonoBehaviourPunCallbacks
         if (millDetector == null)
         {
             millDetector = GetComponent<MillDetector>();
-            if (millDetector == null) millDetector = gameObject.AddComponent<MillDetector>();
+
+            if (millDetector == null)
+                millDetector = gameObject.AddComponent<MillDetector>();
         }
 
         occupiedNodes[nodeID] = player;
 
-        if (player == 1) playerOnePlacedCows++;
-        else playerTwoPlacedCows++;
+        if (player == 1)
+            playerOnePlacedCows++;
+        else
+            playerTwoPlacedCows++;
 
-        //Sound 
         SoundManager.PlayValidMove();
 
         List<MillDetector.Mill> formedMills =
@@ -169,14 +173,18 @@ public class GameManager : MonoBehaviourPunCallbacks
             currentMills = formedMills;
 
             int opponent = (player == 1) ? 2 : 1;
-            currentRemovableCows = millDetector.GetRemovableOpponentCows(opponent, occupiedNodes);
+
+            currentRemovableCows =
+                millDetector.GetRemovableOpponentCows(opponent, occupiedNodes);
 
             StartRemovalPhase(player);
         }
         else if (!isRemovalPhase)
         {
             CheckPlacementPhaseComplete();
+
             currentPlayer = (currentPlayer == 1) ? 2 : 1;
+
             UpdatePhaseUI();
         }
     }
@@ -193,6 +201,7 @@ public class GameManager : MonoBehaviourPunCallbacks
             ApplyMovementLogic(player, fromNodeID, toNodeID);
             return;
         }
+
         photonView.RPC("RPC_Movement", RpcTarget.All, player, fromNodeID, toNodeID);
     }
 
@@ -203,20 +212,29 @@ public class GameManager : MonoBehaviourPunCallbacks
         BoardNode toNode = GetNodeByID(toNodeID);
         BoardNode fromNode = GetNodeByID(fromNodeID);
 
-        if (fromNode != null) fromNode.isOccupied = false;
-        if (toNode != null) toNode.isOccupied = true;
+        if (fromNode != null)
+            fromNode.isOccupied = false;
 
+        if (toNode != null)
+            toNode.isOccupied = true;
+
+        // Move actual cow GameObject
         if (cowGameObjects.ContainsKey(fromNodeID))
         {
             GameObject cowGO = cowGameObjects[fromNodeID];
+
             if (cowGO != null && toNode != null)
+            {
                 cowGO.transform.position = toNode.transform.position;
+            }
+
             cowGameObjects.Remove(fromNodeID);
             cowGameObjects[toNodeID] = cowGO;
         }
 
-        if (occupiedNodes.ContainsKey(fromNodeID)) occupiedNodes.Remove(fromNodeID);
-        occupiedNodes[toNodeID] = player;
+        // IMPORTANT:
+        // occupiedNodes is NOT updated here.
+        // ApplyMovementLogic already handles it.
 
         ApplyMovementLogic(player, fromNodeID, toNodeID);
     }
@@ -226,13 +244,18 @@ public class GameManager : MonoBehaviourPunCallbacks
         if (millDetector == null)
         {
             millDetector = GetComponent<MillDetector>();
-            if (millDetector == null) millDetector = gameObject.AddComponent<MillDetector>();
+
+            if (millDetector == null)
+                millDetector = gameObject.AddComponent<MillDetector>();
         }
 
-        if (occupiedNodes.ContainsKey(fromNodeID)) occupiedNodes.Remove(fromNodeID);
+        // Update occupied nodes
+        if (occupiedNodes.ContainsKey(fromNodeID))
+            occupiedNodes.Remove(fromNodeID);
+
         occupiedNodes[toNodeID] = player;
 
-        SoundManager.PlayValidMove(); //cow successefully moved sound
+        SoundManager.PlayValidMove();
 
         List<MillDetector.Mill> formedMills =
             millDetector.CheckMillOnPlacement(toNodeID, player, occupiedNodes);
@@ -244,15 +267,89 @@ public class GameManager : MonoBehaviourPunCallbacks
             currentMills = formedMills;
 
             int opponent = (player == 1) ? 2 : 1;
-            currentRemovableCows = millDetector.GetRemovableOpponentCows(opponent, occupiedNodes);
+
+            currentRemovableCows =
+                millDetector.GetRemovableOpponentCows(opponent, occupiedNodes);
 
             StartRemovalPhase(player);
         }
         else if (!isRemovalPhase)
         {
             currentPlayer = (currentPlayer == 1) ? 2 : 1;
+
             UpdatePhaseUI();
+
+            // Check if next player has no valid moves
+            CheckWinCondition();
         }
+    }
+
+    private bool PlayerHasValidMoves(int player)
+    {
+        // Flying players can move anywhere
+        if (IsPlayerFlying(player))
+        {
+            for (int i = 0; i < 24; i++)
+            {
+                if (!occupiedNodes.ContainsKey(i))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        // Normal movement adjacency rules
+        Dictionary<int, List<int>> adjacency = new Dictionary<int, List<int>>()
+    {
+        {0,  new List<int>{1,7}},
+        {1,  new List<int>{0,2,9}},
+        {2,  new List<int>{1,3}},
+        {3,  new List<int>{2,4,11}},
+        {4,  new List<int>{3,5}},
+        {5,  new List<int>{4,6,13}},
+        {6,  new List<int>{5,7}},
+        {7,  new List<int>{6,0,15}},
+
+        {8,  new List<int>{9,15}},
+        {9,  new List<int>{8,10,1,17}},
+        {10, new List<int>{9,11}},
+        {11, new List<int>{10,12,3,19}},
+        {12, new List<int>{11,13}},
+        {13, new List<int>{12,14,5,21}},
+        {14, new List<int>{13,15}},
+        {15, new List<int>{14,8,7,23}},
+
+        {16, new List<int>{17,23}},
+        {17, new List<int>{16,18,9}},
+        {18, new List<int>{17,19}},
+        {19, new List<int>{18,20,11}},
+        {20, new List<int>{19,21}},
+        {21, new List<int>{20,22,13}},
+        {22, new List<int>{21,23}},
+        {23, new List<int>{22,16,15}}
+    };
+
+        // Check all cows belonging to player
+        foreach (var kvp in occupiedNodes)
+        {
+            int nodeID = kvp.Key;
+            int owner = kvp.Value;
+
+            if (owner != player)
+                continue;
+
+            foreach (int adjacent in adjacency[nodeID])
+            {
+                if (!occupiedNodes.ContainsKey(adjacent))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -264,6 +361,7 @@ public class GameManager : MonoBehaviourPunCallbacks
         {
             currentPhase = GamePhase.Movement;
             UpdatePhaseUI();
+
             Debug.Log("Movement phase begins!");
         }
     }
@@ -273,8 +371,11 @@ public class GameManager : MonoBehaviourPunCallbacks
         if (currentRemovableCows.Count == 0)
         {
             Debug.LogWarning("No removable cows - skipping removal.");
+
             isRemovalPhase = false;
+
             currentPlayer = (currentPlayer == 1) ? 2 : 1;
+
             UpdatePhaseUI();
             return;
         }
@@ -287,19 +388,18 @@ public class GameManager : MonoBehaviourPunCallbacks
             Debug.Log("trying to activate removal node whoop ");
             removalHandler.ActivateRemovalMode(currentRemovableCows);
         }
-            
-            
     }
 
     public void RemoveCow(int nodeID)
     {
         if (gameOver) return;
         if (!isRemovalPhase) return;
-        if (!currentRemovableCows.Contains(nodeID)) 
-        { 
-            Debug.Log("That cow is protected."); 
-            SoundManager.PlayInvalidMove(); //protected cow sound
-            return; 
+
+        if (!currentRemovableCows.Contains(nodeID))
+        {
+            Debug.Log("That cow is protected.");
+            SoundManager.PlayInvalidMove();
+            return;
         }
 
         if (!PhotonNetwork.IsConnected)
@@ -307,6 +407,7 @@ public class GameManager : MonoBehaviourPunCallbacks
             ApplyRemovalLogic(nodeID);
             return;
         }
+
         photonView.RPC("RPC_RemoveCow", RpcTarget.All, nodeID);
     }
 
@@ -319,7 +420,11 @@ public class GameManager : MonoBehaviourPunCallbacks
     private void ApplyRemovalLogic(int nodeID)
     {
         List<int> previouslyHighlighted = new List<int>(currentRemovableCows);
-        int playerToRemove = occupiedNodes.ContainsKey(nodeID) ? occupiedNodes[nodeID] : -1;
+
+        int playerToRemove =
+            occupiedNodes.ContainsKey(nodeID)
+            ? occupiedNodes[nodeID]
+            : -1;
 
         // Destroy cow visually
         if (cowGameObjects.ContainsKey(nodeID))
@@ -328,47 +433,37 @@ public class GameManager : MonoBehaviourPunCallbacks
             cowGameObjects.Remove(nodeID);
         }
 
-        SoundManager.PlayRemoval(); //cow removed sound
+        SoundManager.PlayRemoval();
 
         BoardNode node = GetNodeByID(nodeID);
-        if (node != null) node.isOccupied = false;
+        if (node != null)
+            node.isOccupied = false;
 
-        if (playerToRemove == 1) playerOneTotalCows--;
-        else if (playerToRemove == 2) playerTwoTotalCows--;
+        if (playerToRemove == 1)
+            playerOneTotalCows--;
+        else if (playerToRemove == 2)
+            playerTwoTotalCows--;
 
         UpdateFlyingPhase();
+
         occupiedNodes.Remove(nodeID);
 
         isRemovalPhase = false;
-        //currentRemovableCows.Clear();
 
         HighlightRemovableCows(previouslyHighlighted, false);
         UpdateRemovalUI(false);
 
-        if (removalHandler != null) removalHandler.DeactivateRemovalMode();
+        if (removalHandler != null)
+            removalHandler.DeactivateRemovalMode();
 
         currentPlayer = (currentPlayer == 1) ? 2 : 1;
+
         CheckPlacementPhaseComplete();
         UpdatePhaseUI();
 
-        // Check win
-        if (currentPhase == GamePhase.Movement)
-        {
-            int winner = 0;
-            if (playerOneTotalCows < 3) winner = 2;
-            else if (playerTwoTotalCows < 3) winner = 1;
+        // Check all win conditions
+        CheckWinCondition();
 
-            if (winner != 0)
-            {
-                string winnerName = (winner == 1)
-                    ? PlayerPrefs.GetString("P1", "Player 1")
-                    : PlayerPrefs.GetString("P2", "Player 2");
-                ShowWinScreen(winnerName);
-
-                if (PhotonNetwork.IsConnected)
-                    photonView.RPC("RPC_ShowWinScreen", RpcTarget.Others, winnerName);
-            }
-        }
         currentRemovableCows.Clear();
     }
 
@@ -377,10 +472,17 @@ public class GameManager : MonoBehaviourPunCallbacks
     // ══════════════════════════════════════════════════════════════════════
     private void UpdateFlyingPhase()
     {
-        player1Flying = (playerOneTotalCows == 3 && currentPhase == GamePhase.Movement);
-        player2Flying = (playerTwoTotalCows == 3 && currentPhase == GamePhase.Movement);
-        if (player1Flying) Debug.Log("Player 1 is now flying!");
-        if (player2Flying) Debug.Log("Player 2 is now flying!");
+        player1Flying =
+            (playerOneTotalCows == 3 && currentPhase == GamePhase.Movement);
+
+        player2Flying =
+            (playerTwoTotalCows == 3 && currentPhase == GamePhase.Movement);
+
+        if (player1Flying)
+            Debug.Log("Player 1 is now flying!");
+
+        if (player2Flying)
+            Debug.Log("Player 2 is now flying!");
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -388,29 +490,51 @@ public class GameManager : MonoBehaviourPunCallbacks
     // ══════════════════════════════════════════════════════════════════════
     public int CheckWinCondition()
     {
-        if (gameOver || currentPhase == GamePhase.Placement) return 0;
+        if (gameOver || currentPhase == GamePhase.Placement)
+            return 0;
+
         int winner = 0;
-        if (playerOneTotalCows < 3) winner = 2;
-        else if (playerTwoTotalCows < 3) winner = 1;
+
+        // Less than 3 cows
+        if (playerOneTotalCows < 3)
+            winner = 2;
+        else if (playerTwoTotalCows < 3)
+            winner = 1;
+
+        // No valid moves
+        else if (!PlayerHasValidMoves(1))
+            winner = 2;
+        else if (!PlayerHasValidMoves(2))
+            winner = 1;
+
         if (winner != 0)
         {
-            string winnerName = (winner == 1)
+            string winnerName =
+                (winner == 1)
                 ? PlayerPrefs.GetString("P1", "Player 1")
                 : PlayerPrefs.GetString("P2", "Player 2");
+
             ShowWinScreen(winnerName);
+
             if (PhotonNetwork.IsConnected)
+            {
                 photonView.RPC("RPC_ShowWinScreen", RpcTarget.Others, winnerName);
+            }
         }
+
         return winner;
     }
 
     private void ShowWinScreen(string winnerName)
     {
         gameOver = true;
+
         if (winPanel != null)
         {
             winPanel.SetActive(true);
-            if (winText != null) winText.text = winnerName + " Wins!";
+
+            if (winText != null)
+                winText.text = winnerName + " Wins!";
         }
     }
 
@@ -426,7 +550,9 @@ public class GameManager : MonoBehaviourPunCallbacks
     private void UpdatePhaseUI()
     {
         if (phaseText == null) return;
-        phaseText.text = (currentPhase == GamePhase.Placement)
+
+        phaseText.text =
+            (currentPhase == GamePhase.Placement)
             ? "Phase: Placement"
             : "Phase: Movement";
     }
@@ -434,9 +560,15 @@ public class GameManager : MonoBehaviourPunCallbacks
     private void UpdateRemovalUI(bool active)
     {
         if (removalIndicatorText == null) return;
+
         removalIndicatorText.gameObject.SetActive(active);
+
         if (!active) return;
-        bool isMyTurn = !PhotonNetwork.IsConnected || (playerWhoFormedMill == MyPlayerNumber);
+
+        bool isMyTurn =
+            !PhotonNetwork.IsConnected ||
+            (playerWhoFormedMill == MyPlayerNumber);
+
         removalIndicatorText.text = isMyTurn
             ? "Click an opponent's cow to remove it!"
             : "Opponent is removing one of your cows...";
@@ -447,17 +579,21 @@ public class GameManager : MonoBehaviourPunCallbacks
         foreach (var kvp in cowGameObjects)
         {
             if (kvp.Value == null) continue;
+
             SpriteRenderer sr = kvp.Value.GetComponent<SpriteRenderer>();
             if (sr == null) continue;
-           // sr.color = (highlight && nodeIDs.Contains(kvp.Key)) ? Color.red : Color.white;
-           if (highlight)
-           {
-               sr.color = nodeIDs.Contains(kvp.Key) ? Color.red : GetOriginalColour(kvp.Value);
-           }
-           else
-           {
-               sr.color = GetOriginalColour(kvp.Value);
-           }
+
+            if (highlight)
+            {
+                sr.color =
+                    nodeIDs.Contains(kvp.Key)
+                    ? Color.red
+                    : GetOriginalColour(kvp.Value);
+            }
+            else
+            {
+                sr.color = GetOriginalColour(kvp.Value);
+            }
         }
     }
 
@@ -466,10 +602,9 @@ public class GameManager : MonoBehaviourPunCallbacks
         if (originalColours.ContainsKey(obj))
         {
             return originalColours[obj];
-            
         }
 
-        return Color.white; //fallback 
+        return Color.white;
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -502,15 +637,22 @@ public class GameManager : MonoBehaviourPunCallbacks
     private BoardNode GetNodeByID(int nodeID)
     {
         BoardNode[] allNodes = FindObjectsByType<BoardNode>(FindObjectsSortMode.None);
+
         foreach (BoardNode node in allNodes)
-            if (node.nodeID == nodeID) return node;
+        {
+            if (node.nodeID == nodeID)
+                return node;
+        }
+
         return null;
     }
 
     public void EndTurn()
     {
         if (isRemovalPhase) return;
+
         currentPlayer = (currentPlayer == 1) ? 2 : 1;
+
         UpdatePhaseUI();
     }
 
@@ -520,15 +662,24 @@ public class GameManager : MonoBehaviourPunCallbacks
     public int GetCurrentPlayer() => currentPlayer;
     public int GetPlayerWhoFormedMill() => playerWhoFormedMill;
     public bool IsNodeOccupied(int id) => occupiedNodes.ContainsKey(id);
-    public int GetNodeOwner(int id) => occupiedNodes.ContainsKey(id) ? occupiedNodes[id] : -1;
-    public List<int> GetRemovableCows() => new List<int>(currentRemovableCows);
-    public int GetPlayerOnePlacedCows() => playerOnePlacedCows;
-    public Dictionary<int, int> GetOccupiedNodes() => occupiedNodes;
+
+    public int GetNodeOwner(int id)
+        => occupiedNodes.ContainsKey(id) ? occupiedNodes[id] : -1;
+
+    public List<int> GetRemovableCows()
+        => new List<int>(currentRemovableCows);
+
+    public int GetPlayerOnePlacedCows()
+        => playerOnePlacedCows;
+
+    public Dictionary<int, int> GetOccupiedNodes()
+        => occupiedNodes;
 
     public bool IsPlayerFlying(int playerNumber)
     {
         if (playerNumber == 1) return player1Flying;
         if (playerNumber == 2) return player2Flying;
+
         return false;
     }
 }
