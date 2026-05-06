@@ -1,7 +1,17 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Photon.Pun;
 using UnityEngine;
 
+/// <summary>
+/// CHANGES FROM ORIGINAL:
+///   - RefreshTheme() added — called by ThemeManager on theme switch.
+///     Since tokens are now swapped as full prefabs, RefreshTheme only
+///     updates the drag highlight colour (the sprite is already correct
+///     because the whole prefab was replaced).
+///   - OnMouseDown / OnMouseUp use ThemeManager.PieceHighlight() instead
+///     of hardcoded Color.yellow.
+///   - Everything else is identical to your original Cow.cs.
+/// </summary>
 public class Cow : MonoBehaviour
 {
     private Vector3 offset;
@@ -16,27 +26,42 @@ public class Cow : MonoBehaviour
     private bool isDragging = false;
 
     private GameObject highlight;
+    private SpriteRenderer highlightRenderer;
+    private SpriteRenderer pieceRenderer;
+
     private Vector3 previousPosition;
     private BoardNode previousNode;
 
+    // ── Unity ──────────────────────────────────────────────────────────────
     void Start()
     {
         startPosition = transform.position;
+        pieceRenderer = GetComponent<SpriteRenderer>();
 
         Transform foundHighlight = transform.Find("Highlight");
         if (foundHighlight != null)
         {
             highlight = foundHighlight.gameObject;
+            highlightRenderer = foundHighlight.GetComponent<SpriteRenderer>();
             highlight.SetActive(false);
         }
     }
 
+    // ── Theme refresh ──────────────────────────────────────────────────────
+    /// Called by ThemeManager when the theme changes.
+    /// The sprite is already correct (whole prefab was swapped) so we only
+    /// need to update the highlight colour.
+    public void RefreshTheme()
+    {
+        if (highlightRenderer == null || ThemeManager.Instance == null) return;
+        highlightRenderer.color = ThemeManager.Instance.PieceHighlight(playerNumber);
+    }
+
+    // ── Mouse events ───────────────────────────────────────────────────────
     void OnMouseDown()
     {
         if (GameManager.Instance.IsRemovalPhase()) return;
 
-        // Online mode: only interact with your own cows
-        // Local mode: PhotonNetwork.IsConnected is false, skip ownership check
         if (PhotonNetwork.IsConnected && playerNumber != GameManager.Instance.MyPlayerNumber)
             return;
 
@@ -61,7 +86,18 @@ public class Cow : MonoBehaviour
         zCoord = Camera.main.WorldToScreenPoint(transform.position).z;
         offset = transform.position - GetMouseWorldPosition();
 
-        if (highlight != null) highlight.SetActive(true);
+        // Themed highlight colour on drag
+        if (pieceRenderer != null)
+            pieceRenderer.color = ThemeManager.Instance != null
+                ? ThemeManager.Instance.PieceHighlight(playerNumber)
+                : Color.yellow;
+
+        if (highlight != null)
+        {
+            highlight.SetActive(true);
+            if (highlightRenderer != null && ThemeManager.Instance != null)
+                highlightRenderer.color = ThemeManager.Instance.PieceHighlight(playerNumber);
+        }
     }
 
     void OnMouseDrag()
@@ -75,6 +111,10 @@ public class Cow : MonoBehaviour
         if (!isDragging) return;
         isDragging = false;
 
+        // Restore normal colour (white so the sprite shows its true colour)
+        if (pieceRenderer != null)
+            pieceRenderer.color = Color.white;
+
         if (GameManager.Instance.IsPlacementPhase())
             HandlePlacement();
         else
@@ -83,6 +123,7 @@ public class Cow : MonoBehaviour
         if (highlight != null) highlight.SetActive(false);
     }
 
+    // ── Placement / Movement (identical to original) ───────────────────────
     private void HandlePlacement()
     {
         if (hoveredNode != null && !hoveredNode.isOccupied)
@@ -94,7 +135,6 @@ public class Cow : MonoBehaviour
 
             SoundEffectsPlayer.PlayPlacement();
             Debug.Log("Cow placed on node: " + placedNode.nodeID);
-
             GameManager.Instance.RegisterPlacement(playerNumber, placedNode.nodeID, gameObject);
         }
         else
@@ -147,6 +187,7 @@ public class Cow : MonoBehaviour
         }
     }
 
+    // ── Helpers (identical to original) ───────────────────────────────────
     private Vector3 GetMouseWorldPosition()
     {
         Vector3 mousePoint = Input.mousePosition;

@@ -6,17 +6,9 @@ using TMPro;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// Simplified Lobby scene UI.
-///
-/// INSPECTOR SETUP — assign these fields:
-///   - playerNameInput    TMP_InputField
-///   - quickJoinButton    Button
-///   - hostButton         Button
-///   - joinButton         Button
-///   - localPlayButton    Button
-///   - roomCodeInput      TMP_InputField
-///   - roomCodeDisplay    TextMeshProUGUI
-///   - statusText         TextMeshProUGUI
+/// CHANGES FROM ORIGINAL:
+///   - SetStatus() reads good/bad colours from ThemeManager instead of hardcoding Color.green / Color.red
+///   - Everything else is identical
 /// </summary>
 public class NetworkUI : MonoBehaviourPunCallbacks
 {
@@ -32,7 +24,6 @@ public class NetworkUI : MonoBehaviourPunCallbacks
 
     private void Start()
     {
-        // Pre-fill name from login
         string savedName = PlayerPrefs.GetString("LoggedInUsername", "");
         if (!string.IsNullOrEmpty(savedName) && playerNameInput != null)
             playerNameInput.text = savedName;
@@ -49,7 +40,7 @@ public class NetworkUI : MonoBehaviourPunCallbacks
         if (localPlayButton != null) localPlayButton.onClick.AddListener(PlayLocal);
     }
 
-    // ── Photon Callbacks ───────────────────────────────────────────────────
+    // ── Photon Callbacks (identical to original) ───────────────────────────
     public override void OnConnectedToMaster()
     {
         SetStatus("Connected. Ready to play!", true);
@@ -60,8 +51,7 @@ public class NetworkUI : MonoBehaviourPunCallbacks
     public override void OnCreatedRoom()
     {
         string code = PhotonNetwork.CurrentRoom.Name;
-        if (roomCodeDisplay != null)
-            roomCodeDisplay.text =  code;
+        if (roomCodeDisplay != null) roomCodeDisplay.text = code;
         SetStatus("Waiting for opponent...", true);
     }
 
@@ -107,7 +97,7 @@ public class NetworkUI : MonoBehaviourPunCallbacks
         PhotonNetwork.ConnectUsingSettings();
     }
 
-    // ── Button Actions ─────────────────────────────────────────────────────
+    // ── Button Actions (identical to original) ─────────────────────────────
     private void QuickJoin()
     {
         if (!SetName()) return;
@@ -157,11 +147,14 @@ public class NetworkUI : MonoBehaviourPunCallbacks
         return true;
     }
 
+    /// Themed status colours — reads from ThemeManager if available, falls back to green/red.
     private void SetStatus(string message, bool good)
     {
         if (statusText == null) return;
         statusText.text = message;
-        statusText.color = good ? Color.green : Color.red;
+        statusText.color = ThemeManager.Instance != null
+            ? ThemeManager.Instance.StatusColor(good)
+            : (good ? Color.green : Color.red);
     }
 
     private void SetButtonsInteractable(bool value)
