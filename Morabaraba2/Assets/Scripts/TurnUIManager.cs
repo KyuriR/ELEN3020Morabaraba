@@ -2,11 +2,6 @@ using Photon.Pun;
 using UnityEngine;
 using TMPro;
 
-/// <summary>
-/// CHANGES FROM ORIGINAL:
-///   - UpdateTurnText() reads turn/mill colours from ThemeManager instead of hardcoding Color.red/blue/yellow
-///   - Everything else is identical
-/// </summary>
 public class TurnUIManager : MonoBehaviour
 {
     [SerializeField] private TextMeshProUGUI turnText;
@@ -38,25 +33,19 @@ public class TurnUIManager : MonoBehaviour
     private void UpdateTurnText()
     {
         int current = GameManager.Instance.GetCurrentPlayer();
-        string name = (current == 1) ? player1Name : player2Name;
+        string name = current == 1 ? player1Name : player2Name;
 
         if (GameManager.Instance.IsRemovalPhase())
         {
             int mill = GameManager.Instance.GetPlayerWhoFormedMill();
-            string millName = (mill == 1) ? player1Name : player2Name;
-
+            string millName = mill == 1 ? player1Name : player2Name;
             turnText.text = millName + " formed a mill!\nRemove an opponent's cow.";
-
-            // Use themed mill colour instead of hardcoded Color.yellow
             turnText.color = ThemeManager.Instance != null
-                ? ThemeManager.Instance.MillAlertColor()
-                : Color.yellow;
+                ? ThemeManager.Instance.MillAlertColor() : Color.yellow;
         }
         else
         {
             turnText.text = name + "'s Turn";
-
-            // Use themed player colours instead of hardcoded Color.red / Color.blue
             turnText.color = ThemeManager.Instance != null
                 ? ThemeManager.Instance.TurnColor(current)
                 : (current == 1 ? Color.red : Color.blue);
@@ -67,14 +56,11 @@ public class TurnUIManager : MonoBehaviour
     {
         if (cowCountText == null) return;
 
-        var nodes = GameManager.Instance.GetOccupiedNodes();
-        int p1 = 0, p2 = 0;
-
-        foreach (var kvp in nodes)
-        {
-            if (kvp.Value == 1) p1++;
-            else p2++;
-        }
+        // Use total cow counts from GameManager — NOT occupiedNodes.Count.
+        // occupiedNodes only has cows on the board, not sidebar cows,
+        // and doesn't reflect removals correctly.
+        int p1 = GameManager.Instance.GetPlayerOneTotalCows();
+        int p2 = GameManager.Instance.GetPlayerTwoTotalCows();
 
         cowCountText.text = player1Name + ": " + p1 + " cows\n"
                           + player2Name + ": " + p2 + " cows";

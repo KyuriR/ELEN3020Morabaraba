@@ -161,6 +161,14 @@ public class GameManager : MonoBehaviourPunCallbacks
     {
         if (gameOver) return;
 
+        // Keep cowGameObjects in sync so removal can find the cow after it moves
+        if (cowObject != null)
+        {
+            if (fromNodeID >= 0 && cowGameObjects.ContainsKey(fromNodeID))
+                cowGameObjects.Remove(fromNodeID);
+            cowGameObjects[toNodeID] = cowObject;
+        }
+
         if (!PhotonNetwork.IsConnected)
         {
             ApplyMovementLogic(player, fromNodeID, toNodeID);
@@ -361,10 +369,41 @@ public class GameManager : MonoBehaviourPunCallbacks
 
         int playerToRemove = occupiedNodes.ContainsKey(nodeID) ? occupiedNodes[nodeID] : -1;
 
+        // Primary: dictionary lookup
         if (cowGameObjects.ContainsKey(nodeID))
         {
             Destroy(cowGameObjects[nodeID]);
             cowGameObjects.Remove(nodeID);
+        }
+        else
+        {
+            // Fallback: cow was moved here but cowGameObjects wasn't updated.
+            // Try placedNode match first, then proximity.
+            BoardNode targetNode = GetNodeByID(nodeID);
+            bool destroyed = false;
+
+            foreach (Cow cow in FindObjectsByType<Cow>(FindObjectsSortMode.None))
+            {
+                if (cow.GetPlacedNode() != null && cow.GetPlacedNode().nodeID == nodeID)
+                {
+                    cowGameObjects.Remove(nodeID); // clean up if stale
+                    Destroy(cow.gameObject);
+                    destroyed = true;
+                    break;
+                }
+            }
+
+            if (!destroyed && targetNode != null)
+            {
+                foreach (Cow cow in FindObjectsByType<Cow>(FindObjectsSortMode.None))
+                {
+                    if (Vector3.Distance(cow.transform.position, targetNode.transform.position) < 0.3f)
+                    {
+                        Destroy(cow.gameObject);
+                        break;
+                    }
+                }
+            }
         }
 
         SoundManager.PlayRemoval();
@@ -570,4 +609,6 @@ public class GameManager : MonoBehaviourPunCallbacks
     public int GetPlayerOnePlacedCows() => playerOnePlacedCows;
     public Dictionary<int, int> GetOccupiedNodes() => occupiedNodes;
     public bool IsPlayerFlying(int p) => p == 1 ? player1Flying : p == 2 && player2Flying;
+    public int GetPlayerOneTotalCows() => playerOneTotalCows;
+    public int GetPlayerTwoTotalCows() => playerTwoTotalCows;
 }

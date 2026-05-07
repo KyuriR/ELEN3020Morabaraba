@@ -1,19 +1,6 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>
-/// Handles mouse clicks during the removal phase.
-///
-/// ROOT CAUSE FIX:
-/// The previous version tried to find cows by collider hit or by cow.GetPlacedNode().
-/// Both failed because SpawnRemoteCow() disables the cow's collider AND never calls
-/// ForcePlace(), so placed cows had collider=disabled and placedNode=null.
-///
-/// NEW APPROACH:
-/// We skip cows entirely. We know WHICH nodes are removable (from GameManager).
-/// We just check if the click landed near any of those node positions.
-/// No colliders needed. No placedNode needed. Always works.
-/// </summary>
 public class CowRemovalClickHandler : MonoBehaviour
 {
     private bool removalModeActive = false;
@@ -30,6 +17,13 @@ public class CowRemovalClickHandler : MonoBehaviour
         removalModeActive = true;
         removableNodes = new List<int>(nodes);
         Debug.Log("[Removal] Activated. Eligible nodes: " + string.Join(", ", nodes));
+
+        // Log each removable node's world position so we can verify they match the board
+        foreach (int id in nodes)
+        {
+            BoardNode n = GetNodeByID(id);
+            Debug.Log($"[Removal] Node {id} world pos: {(n != null ? n.transform.position.ToString() : "NOT FOUND")}");
+        }
     }
 
     public void DeactivateRemovalMode()
@@ -46,34 +40,20 @@ public class CowRemovalClickHandler : MonoBehaviour
         Vector3 worldPos = mainCamera.ScreenToWorldPoint(Input.mousePosition);
         worldPos.z = 0;
 
-        int clickedNode = FindClosestRemovableNode(worldPos);
+        Debug.Log($"[Removal] Click at {worldPos}");
 
-        if (clickedNode >= 0)
-        {
-            Debug.Log("[Removal] Removing cow on node " + clickedNode);
-            GameManager.Instance.RemoveCow(clickedNode);
-        }
-        else
-        {
-            Debug.Log("[Removal] No removable node near click.");
-        }
-    }
-
-    // ── Find which removable node the player clicked ───────────────────────
-    // Checks the click position against the world position of each removable
-    // node directly. No colliders, no cow scripts involved.
-    private int FindClosestRemovableNode(Vector3 clickPos)
-    {
-        float threshold = 0.6f;   // world units — widen if clicks feel too tight
+        // Log distance to every removable node so we can see which one wins
         int bestNode = -1;
-        float bestDist = threshold;
+        float bestDist = 0.6f;   // threshold in world units
 
         foreach (int nodeID in removableNodes)
         {
             BoardNode node = GetNodeByID(nodeID);
             if (node == null) continue;
 
-            float dist = Vector3.Distance(clickPos, node.transform.position);
+            float dist = Vector3.Distance(worldPos, node.transform.position);
+            Debug.Log($"[Removal] Distance to node {nodeID} at {node.transform.position}: {dist:F3}");
+
             if (dist < bestDist)
             {
                 bestDist = dist;
@@ -81,7 +61,15 @@ public class CowRemovalClickHandler : MonoBehaviour
             }
         }
 
-        return bestNode;
+        if (bestNode >= 0)
+        {
+            Debug.Log($"[Removal] Removing cow on node {bestNode} (dist {bestDist:F3})");
+            GameManager.Instance.RemoveCow(bestNode);
+        }
+        else
+        {
+            Debug.Log("[Removal] No removable node within threshold of click.");
+        }
     }
 
     private BoardNode GetNodeByID(int id)
