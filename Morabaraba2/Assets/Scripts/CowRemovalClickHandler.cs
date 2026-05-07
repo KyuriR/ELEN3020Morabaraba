@@ -1,10 +1,18 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
 /// Handles mouse clicks during the removal phase.
-/// When active, clicking on an eligible opponent cow removes it.
-/// Activated and deactivated by GameManager.
+///
+/// ROOT CAUSE FIX:
+/// The previous version tried to find cows by collider hit or by cow.GetPlacedNode().
+/// Both failed because SpawnRemoteCow() disables the cow's collider AND never calls
+/// ForcePlace(), so placed cows had collider=disabled and placedNode=null.
+///
+/// NEW APPROACH:
+/// We skip cows entirely. We know WHICH nodes are removable (from GameManager).
+/// We just check if the click landed near any of those node positions.
+/// No colliders needed. No placedNode needed. Always works.
 /// </summary>
 public class CowRemovalClickHandler : MonoBehaviour
 {
@@ -28,77 +36,58 @@ public class CowRemovalClickHandler : MonoBehaviour
     {
         removalModeActive = false;
         removableNodes.Clear();
-        Debug.Log("[Removal] Deactivated.");
     }
 
     void Update()
     {
-        // No logging here � this runs every frame
         if (!removalModeActive) return;
         if (!Input.GetMouseButtonDown(0)) return;
 
         Vector3 worldPos = mainCamera.ScreenToWorldPoint(Input.mousePosition);
         worldPos.z = 0;
 
-        // Primary: raycast hit on a Cow-tagged collider
-        Collider2D hit = Physics2D.OverlapPoint(worldPos);
-        if (hit != null && hit.CompareTag("Cow"))
+        int clickedNode = FindClosestRemovableNode(worldPos);
+
+        if (clickedNode >= 0)
         {
-            TryRemoveCow(hit.GetComponent<Cow>());
-            return;
-        }
-
-        // Fallback: proximity check across all placed cows
-        TryRemoveClosestCow(worldPos);
-    }
-
-    private void TryRemoveCow(Cow cow)
-    {
-        if (cow == null) return;
-
-        BoardNode node = cow.GetPlacedNode();
-        if (node == null)
-        {
-            Debug.Log("[Removal] Cow has no placed node.");
-            return;
-        }
-
-        if (removableNodes.Contains(node.nodeID))
-        {
-            Debug.Log("[Removal] Removing cow on node " + node.nodeID);
-            GameManager.Instance.RemoveCow(node.nodeID);
+            Debug.Log("[Removal] Removing cow on node " + clickedNode);
+            GameManager.Instance.RemoveCow(clickedNode);
         }
         else
         {
-            Debug.Log("[Removal] Node " + node.nodeID + " is not removable (protected by mill).");
-            SoundManager.PlayInvalidMove();
+            Debug.Log("[Removal] No removable node near click.");
         }
     }
 
-    private void TryRemoveClosestCow(Vector3 clickPosition)
+    // ── Find which removable node the player clicked ───────────────────────
+    // Checks the click position against the world position of each removable
+    // node directly. No colliders, no cow scripts involved.
+    private int FindClosestRemovableNode(Vector3 clickPos)
     {
-        // Re-find cows each time so we never use a stale list
-        Cow[] allCows = FindObjectsByType<Cow>(FindObjectsSortMode.None);
-        float threshold = 0.6f;
-        Cow closestCow = null;
-        float closestDist = threshold;
+        float threshold = 0.6f;   // world units — widen if clicks feel too tight
+        int bestNode = -1;
+        float bestDist = threshold;
 
-        foreach (Cow cow in allCows)
+        foreach (int nodeID in removableNodes)
         {
-            // Only consider cows that are actually placed on the board
-            if (cow.GetPlacedNode() == null) continue;
+            BoardNode node = GetNodeByID(nodeID);
+            if (node == null) continue;
 
-            float dist = Vector3.Distance(clickPosition, cow.transform.position);
-            if (dist < closestDist)
+            float dist = Vector3.Distance(clickPos, node.transform.position);
+            if (dist < bestDist)
             {
-                closestDist = dist;
-                closestCow = cow;
+                bestDist = dist;
+                bestNode = nodeID;
             }
         }
 
-        if (closestCow != null)
-            TryRemoveCow(closestCow);
-        else
-            Debug.Log("[Removal] No cow found near click position.");
+        return bestNode;
+    }
+
+    private BoardNode GetNodeByID(int id)
+    {
+        foreach (BoardNode n in FindObjectsByType<BoardNode>(FindObjectsSortMode.None))
+            if (n.nodeID == id) return n;
+        return null;
     }
 }
