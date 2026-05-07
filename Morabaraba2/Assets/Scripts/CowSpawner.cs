@@ -1,3 +1,5 @@
+using Photon.Pun;
+using UnityEditor.Graphs;
 using UnityEngine;
 
 /// <summary>
@@ -31,7 +33,9 @@ public class CowSpawner : MonoBehaviour
         for (int i = 0; i < numberOfCows; i++)
         {
             Vector2 spawnPos = new Vector2(startPosition.x, startPosition.y + i * 0.62f);
-            GameObject cow = Instantiate(cowPrefab, spawnPos, Quaternion.identity, transform);
+          //GameObject cow = Instantiate(cowPrefab, spawnPos, Quaternion.identity, transform);
+          GameObject cow = PhotonNetwork.Instantiate("Prefabs", spawnPos, Quaternion.identity);
+          cow.transform.SetParent(transform);
             cow.GetComponent<Cow>().playerNumber = playerNumber;
         }
     }
@@ -45,7 +49,7 @@ public class CowSpawner : MonoBehaviour
             Destroy(child.gameObject);
 
         // Also clear from GameManager's tracking so the game state stays clean
-        // (only matters if called during active gameplay — safe to call at theme select too)
+        // (only matters if called during active gameplay ï¿½ safe to call at theme select too)
         Spawn();
     }
 }
