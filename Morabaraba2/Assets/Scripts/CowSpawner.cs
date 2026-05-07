@@ -13,7 +13,7 @@ public class CowSpawner : MonoBehaviourPunCallbacks
     public int numberOfCows = 12;
     public Vector2 startPosition;
 
-    public string cowPrefabName = "Prefab/TraditionalCow1";
+    public string cowPrefabName = "Prefabs/TraditionalCow1";
 
     public override void OnJoinedRoom()
     {
