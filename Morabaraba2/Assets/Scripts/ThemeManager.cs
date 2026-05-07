@@ -182,8 +182,17 @@ public class ThemeManager : MonoBehaviour
 
     private void SwapTokens(int index)
     {
-        if (cowSpawner1 != null) { if (player1TokenPrefabs[index] != null) cowSpawner1.cowPrefab = player1TokenPrefabs[index]; cowSpawner1.Respawn(); }
-        if (cowSpawner2 != null) { if (player2TokenPrefabs[index] != null) cowSpawner2.cowPrefab = player2TokenPrefabs[index]; cowSpawner2.Respawn(); }
+        if (cowSpawner1 != null && player1TokenPrefabs[index] != null)
+        {
+            cowSpawner1.cowPrefabName = player1TokenPrefabs[index].name;
+            cowSpawner1.Respawn();
+        }
+
+        if (cowSpawner2 != null && player2TokenPrefabs[index] != null)
+        {
+            cowSpawner2.cowPrefabName = player2TokenPrefabs[index].name;
+            cowSpawner2.Respawn();
+        }
     }
 
     private void SwapMusic(int index)
