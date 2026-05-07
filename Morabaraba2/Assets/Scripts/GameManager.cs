@@ -682,4 +682,35 @@ public int currentPlayer = 1;
 
         return false;
     }
+
+    public void RequestPlacement(int player, int nodeID, Vector3 position)
+    {
+        if (gameOver) return;
+        if (player != MyPlayerNumber) return;
+
+        // Call RPC to create cow on all clients
+        photonView.RPC("RPC_CreateAndPlaceCow", RpcTarget.All, player, nodeID, position);
+    }
+
+    [PunRPC]
+    private void RPC_CreateAndPlaceCow(int player, int nodeID, Vector3 position)
+    {
+        // Load the appropriate prefab based on player
+        string prefabPath = player == 1 ? "Prefabs/CowPlayer1" : "Prefabs/CowPlayer2";
+        GameObject cowPrefab = Resources.Load<GameObject>(prefabPath);
+
+        // Instantiate locally (but since it's an RPC, it runs on all clients)
+        GameObject cowObject = Instantiate(cowPrefab, position, Quaternion.identity);
+
+        // Store and apply placement logic
+        cowGameObjects[nodeID] = cowObject;
+
+        SpriteRenderer sr = cowObject.GetComponent<SpriteRenderer>();
+        if (sr != null && !originalColours.ContainsKey(cowObject))
+        {
+            originalColours[cowObject] = sr.color;
+        }
+
+        ApplyPlacementLogic(player, nodeID);
+    }
 }
