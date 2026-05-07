@@ -116,7 +116,6 @@ public int currentPlayer = 1;
     // ══════════════════════════════════════════════════════════════════════
     public void RegisterPlacement(int player, int nodeID, GameObject cowObject)
     {
-        
         if (gameOver) return;
 
         if (cowObject != null)
@@ -136,24 +135,12 @@ public int currentPlayer = 1;
             return;
         }
 
-        int pvID = cowObject.GetComponent<PhotonView>().ViewID;
-        photonView.RPC("RPC_Placement", RpcTarget.Others, player, nodeID,pvID);
-        ApplyPlacementLogic(player,nodeID); //run locally immediately 
+        photonView.RPC("RPC_Placement", RpcTarget.All, player, nodeID);
     }
 
     [PunRPC]
-    private void RPC_Placement(int player, int nodeID,int photonViewID)
+    private void RPC_Placement(int player, int nodeID)
     {
-        PhotonView pv = PhotonView.Find(photonViewID);
-        if (pv != null)
-        {
-            cowGameObjects[nodeID] = pv.gameObject;
-            SpriteRenderer sr = pv.gameObject.GetComponent<SpriteRenderer>();
-            if (sr != null && !originalColours.ContainsKey(pv.gameObject))
-            {
-                originalColours[pv.gameObject] = sr.color;
-            }
-        }
         ApplyPlacementLogic(player, nodeID);
     }
 
