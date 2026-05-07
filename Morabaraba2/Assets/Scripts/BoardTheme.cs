@@ -47,7 +47,7 @@ public class BoardTheme : ScriptableObject
     [Header("Turn UI Colors")]
     public Color player1TurnColor = Color.red;         // Replaces hardcoded Color.red
     public Color player2TurnColor = Color.blue;        // Replaces hardcoded Color.blue
-    public Color millAlertColor = Color.yellow;      // "Formed a mill!" text color
+    public Color millAlertColor = Color.green;      // "Formed a mill!" text color
     public Color goodStatusColor = Color.green;       // Network status: connected
     public Color badStatusColor = Color.red;         // Network status: error
 

@@ -40,25 +40,18 @@ public class TurnUIManager : MonoBehaviour
             int mill = GameManager.Instance.GetPlayerWhoFormedMill();
             string millName = mill == 1 ? player1Name : player2Name;
             turnText.text = millName + " formed a mill!\nRemove an opponent's cow.";
-            turnText.color = ThemeManager.Instance != null
-                ? ThemeManager.Instance.MillAlertColor() : Color.yellow;
         }
         else
         {
             turnText.text = name + "'s Turn";
-            turnText.color = ThemeManager.Instance != null
-                ? ThemeManager.Instance.TurnColor(current)
-                : (current == 1 ? Color.red : Color.blue);
         }
+        // Colour is set in the Inspector on the TMP component — never changed here
     }
 
     private void UpdateCowCountText()
     {
         if (cowCountText == null) return;
 
-        // Use total cow counts from GameManager — NOT occupiedNodes.Count.
-        // occupiedNodes only has cows on the board, not sidebar cows,
-        // and doesn't reflect removals correctly.
         int p1 = GameManager.Instance.GetPlayerOneTotalCows();
         int p2 = GameManager.Instance.GetPlayerTwoTotalCows();
 
