@@ -12,7 +12,7 @@ public class BoardNodeThemer : MonoBehaviour
     {
         // Make sure the node sprite always shows its true colour with no tint
         SpriteRenderer sr = GetComponent<SpriteRenderer>();
-        if (sr != null) sr.color = Color.white;
+ 
     }
 
     // These are called by other scripts — kept so nothing breaks

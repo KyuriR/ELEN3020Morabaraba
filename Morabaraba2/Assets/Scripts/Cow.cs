@@ -87,10 +87,7 @@ public class Cow : MonoBehaviour
         offset = transform.position - GetMouseWorldPosition();
 
         // Themed highlight colour on drag
-        if (pieceRenderer != null)
-            pieceRenderer.color = ThemeManager.Instance != null
-                ? ThemeManager.Instance.PieceHighlight(playerNumber)
-                : Color.yellow;
+      
 
         if (highlight != null)
         {
@@ -113,7 +110,7 @@ public class Cow : MonoBehaviour
 
         // Restore normal colour (white so the sprite shows its true colour)
         if (pieceRenderer != null)
-            pieceRenderer.color = Color.white;
+           // pieceRenderer.color = Color.white;
 
         if (GameManager.Instance.IsPlacementPhase())
             HandlePlacement();

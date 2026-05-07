@@ -27,14 +27,14 @@ public class BoardTheme : ScriptableObject
     // ── Player 1 Pieces ────────────────────────────────────────────────────
     [Header("Player 1 Pieces")]
     public Sprite player1Sprite;
-    public Color player1Color = Color.white;
+   // public Color player1Color = Color.white;
     public Color player1HighlightColor = new Color(1f, 0.9f, 0.3f);   // Drag / selected
     public Sprite player1HighlightSprite;                               // Optional swap on select
 
     // ── Player 2 Pieces ────────────────────────────────────────────────────
     [Header("Player 2 Pieces")]
     public Sprite player2Sprite;
-    public Color player2Color = Color.black;
+  //  public Color player2Color = Color.black;
     public Color player2HighlightColor = new Color(0.3f, 0.9f, 1f);
     public Sprite player2HighlightSprite;
 

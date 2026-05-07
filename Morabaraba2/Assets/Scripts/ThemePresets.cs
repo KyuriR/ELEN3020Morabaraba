@@ -30,11 +30,11 @@ public static class ThemePresets
         t.nodeOccupiedColor = new Color(0.30f, 0.20f, 0.08f);
 
         // Player 1 — bone / light cattle-horn
-        t.player1Color          = new Color(0.93f, 0.87f, 0.73f);
+     
         t.player1HighlightColor = new Color(0.98f, 0.82f, 0.30f);
 
         // Player 2 — dark ebony
-        t.player2Color          = new Color(0.15f, 0.10f, 0.05f);
+      
         t.player2HighlightColor = new Color(0.88f, 0.55f, 0.10f);
 
         // Mill
@@ -76,11 +76,11 @@ public static class ThemePresets
         t.nodeOccupiedColor = new Color(0.60f, 0.45f, 0.75f);
 
         // Player 1 — sky crystal / light
-        t.player1Color          = new Color(0.65f, 0.88f, 1.00f);
+       // t.player1Color          = new Color(0.65f, 0.88f, 1.00f);
         t.player1HighlightColor = new Color(1.00f, 0.95f, 0.55f); // Sparkle gold
 
         // Player 2 — sakura rose / warm
-        t.player2Color          = new Color(1.00f, 0.65f, 0.80f);
+       // t.player2Color          = new Color(1.00f, 0.65f, 0.80f);
         t.player2HighlightColor = new Color(0.75f, 0.50f, 1.00f); // Neon violet
 
         // Mill
@@ -122,11 +122,11 @@ public static class ThemePresets
         t.nodeOccupiedColor = new Color(0.20f, 0.22f, 0.30f);
 
         // Player 1 — Rebel Alliance (warm gold / tan)
-        t.player1Color          = new Color(0.92f, 0.80f, 0.35f); // Rebel gold
+      //  t.player1Color          = new Color(0.92f, 0.80f, 0.35f); // Rebel gold
         t.player1HighlightColor = new Color(1.00f, 0.95f, 0.60f); // Bright gold glow
 
         // Player 2 — Galactic Empire (cold chrome / grey-white)
-        t.player2Color          = new Color(0.75f, 0.78f, 0.85f); // Imperial chrome
+       // t.player2Color          = new Color(0.75f, 0.78f, 0.85f); // Imperial chrome
         t.player2HighlightColor = new Color(0.85f, 0.30f, 0.20f); // Red Sith glow
 
         // Mill — Sith lightning red
