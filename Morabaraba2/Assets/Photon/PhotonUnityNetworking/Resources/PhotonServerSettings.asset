@@ -43,6 +43,7 @@ MonoBehaviour:
   - RPC_Placement
   - RPC_RemoveCow
   - RPC_ShowWinScreen
+  - RPC_CreateAndPlaceCow
   DisableAutoOpenWizard: 1
   ShowSettings: 1
   DevRegionSetOnce: 0
