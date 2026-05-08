@@ -21,6 +21,7 @@ public class SettingsMenu : MonoBehaviour
 {
     [Header("Settings Button (in Lobby)")]
     public Button settingsButton;
+    public Button leaderboard;
 
     [Header("Settings Panel")]
     public GameObject settingsPanel;

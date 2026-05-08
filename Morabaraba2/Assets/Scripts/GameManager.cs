@@ -1,9 +1,10 @@
-using System.Collections.Generic;
 using Photon.Pun;
 using Photon.Realtime;
+using System.Collections;
+using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using TMPro;
 using UnityEngine.UI;
 
 public class GameManager : MonoBehaviourPunCallbacks
@@ -56,6 +57,10 @@ public class GameManager : MonoBehaviourPunCallbacks
     [Header("Game UI")]
     [SerializeField] private TextMeshProUGUI phaseText;
     [SerializeField] private TextMeshProUGUI removalIndicatorText;
+
+    [Header("LeaderBoard")]
+    [SerializeField] public Leaderboard leaderboard;
+    
 
     // ── Local player number ────────────────────────────────────────────────
     public int MyPlayerNumber
@@ -454,6 +459,9 @@ public class GameManager : MonoBehaviourPunCallbacks
 
         if (winner != 0)
         {
+            // Submit score to leaderboard for the winning player
+            StartCoroutine(SubmitWinnerScore(winner));
+
             string winnerName = winner == 1
                 ? PlayerPrefs.GetString("P1", "Player 1")
                 : PlayerPrefs.GetString("P2", "Player 2");
@@ -466,6 +474,34 @@ public class GameManager : MonoBehaviourPunCallbacks
 
         return winner;
     }
+
+    private IEnumerator SubmitWinnerScore(int winner)
+    {
+        // Only submit score if the winner is the local player
+        if (MyPlayerNumber == winner)
+        {
+            // Check if leaderboard reference exists
+            if (leaderboard != null)
+            {
+                // Add 1 win point to the leaderboard
+                // Make sure your Leaderboard class has this method
+                yield return StartCoroutine(leaderboard.SubmitScoreRoutine(1)); // Add 1 point per win
+                Debug.Log($"Submitted win to leaderboard for Player {winner}");
+            }
+            else
+            {
+                Debug.LogError("Leaderboard reference is missing in GameManager!");
+
+                // Try to find it if missing
+                leaderboard = FindObjectOfType<Leaderboard>();
+                if (leaderboard != null)
+                {
+                    yield return StartCoroutine(leaderboard.SubmitScoreRoutine(1));
+                }
+            }
+        }
+    }
+
 
     private void ShowWinScreen(string winnerName)
     {
