@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: LootLockerConfig
   m_EditorClassIdentifier: 
   apiKey: dev_3a924ba637a44e0bab56aeabe78066b6
-  adminToken: 846d7fa5a36205c3c1dd50ea124a935e7c7ba16f
-  domainKey: aj476cxc
+  adminToken: 
+  domainKey: 
   game_version: 1.0.0.0
   sdk_version: 7.2.1
   logLevel: 2
@@ -28,9 +28,9 @@ MonoBehaviour:
   enablePresenceAutoDisconnectOnFocusChange: 0
   enablePresenceInEditor: 1
   url: https://api.lootlocker.com/v1
-  adminUrl: https://aj476cxc.api.lootlocker.com/admin
-  playerUrl: https://aj476cxc.api.lootlocker.com/player
-  userUrl: https://aj476cxc.api.lootlocker.com/game
-  webSocketBaseUrl: wss://aj476cxc.api.lootlocker.com/game
-  baseUrl: https://aj476cxc.api.lootlocker.com
+  adminUrl: https://api.lootlocker.com/admin
+  playerUrl: https://api.lootlocker.com/player
+  userUrl: https://api.lootlocker.com/game
+  webSocketBaseUrl: wss://api.lootlocker.com/game
+  baseUrl: https://api.lootlocker.com
   clientSideRequestTimeOut: 180
