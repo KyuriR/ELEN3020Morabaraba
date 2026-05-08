@@ -40,8 +40,7 @@ public class GameManager : MonoBehaviourPunCallbacks
 
     // ── Prefabs for remote spawning ────────────────────────────────────────
     [Header("Token Prefabs for Remote Spawning")]
-    [Tooltip("Drag the Player 1 cow prefab that matches the active theme. " +
-             "ThemeManager will update this automatically at runtime.")]
+    [Tooltip("Drag the Player 1 cow prefab that matches the active theme.")]
     public GameObject player1CowPrefab;
 
     [Tooltip("Drag the Player 2 cow prefab that matches the active theme.")]
@@ -60,7 +59,6 @@ public class GameManager : MonoBehaviourPunCallbacks
 
     [Header("LeaderBoard")]
     [SerializeField] public Leaderboard leaderboard;
-    
 
     // ── Local player number ────────────────────────────────────────────────
     public int MyPlayerNumber
@@ -91,11 +89,9 @@ public class GameManager : MonoBehaviourPunCallbacks
         if (rematchButton != null) rematchButton.onClick.AddListener(OnRematch);
         if (quitButton != null) quitButton.onClick.AddListener(OnQuit);
 
-        // Keep prefabs in sync with the active theme
         SyncPrefabsWithTheme();
     }
 
-    /// Call this whenever the theme changes so remote spawns use the right sprite.
     public void SyncPrefabsWithTheme()
     {
         if (ThemeManager.Instance == null) return;
@@ -141,7 +137,6 @@ public class GameManager : MonoBehaviourPunCallbacks
             return;
         }
 
-        // Send node position so remote client knows where to spawn the visual
         BoardNode node = GetNodeByID(nodeID);
         Vector3 worldPos = node != null ? node.transform.position : Vector3.zero;
 
@@ -154,7 +149,6 @@ public class GameManager : MonoBehaviourPunCallbacks
     [PunRPC]
     private void RPC_Placement(int player, int nodeID, float wx, float wy, float wz)
     {
-        // Spawn the visual on the remote client
         SpawnRemoteCow(player, nodeID, new Vector3(wx, wy, wz));
         ApplyPlacementLogic(player, nodeID);
     }
@@ -166,7 +160,6 @@ public class GameManager : MonoBehaviourPunCallbacks
     {
         if (gameOver) return;
 
-        // Keep cowGameObjects in sync so removal can find the cow after it moves
         if (cowObject != null)
         {
             if (fromNodeID >= 0 && cowGameObjects.ContainsKey(fromNodeID))
@@ -195,7 +188,6 @@ public class GameManager : MonoBehaviourPunCallbacks
     {
         Vector3 toPos = new Vector3(wx, wy, wz);
 
-        // Move the existing cow GO on this client
         if (cowGameObjects.ContainsKey(fromNodeID))
         {
             GameObject cowGO = cowGameObjects[fromNodeID];
@@ -205,7 +197,6 @@ public class GameManager : MonoBehaviourPunCallbacks
         }
         else
         {
-            // Fallback: no GO found locally for this cow — spawn one
             SpawnRemoteCow(player, toNodeID, toPos);
         }
 
@@ -217,26 +208,21 @@ public class GameManager : MonoBehaviourPunCallbacks
         ApplyMovementLogic(player, fromNodeID, toNodeID);
     }
 
-    // ── Spawn a cow visually on the remote client ──────────────────────────
     private void SpawnRemoteCow(int player, int nodeID, Vector3 worldPos)
     {
         GameObject prefab = player == 1 ? player1CowPrefab : player2CowPrefab;
 
         if (prefab == null)
         {
-            Debug.LogWarning($"[GameManager] No prefab set for player {player}. " +
-                              "Assign player1CowPrefab / player2CowPrefab in the Inspector, " +
-                              "or call SyncPrefabsWithTheme() after theme loads.");
+            Debug.LogWarning($"[GameManager] No prefab set for player {player}.");
             return;
         }
 
         GameObject cow = Instantiate(prefab, worldPos, Quaternion.identity);
 
-        // Disable the Cow drag script on the remote client — this machine doesn't own it
         Cow cowScript = cow.GetComponent<Cow>();
         if (cowScript != null) cowScript.enabled = false;
 
-        // Disable colliders so it doesn't interfere with local input
         Collider2D col = cow.GetComponent<Collider2D>();
         if (col != null) col.enabled = false;
 
@@ -251,7 +237,7 @@ public class GameManager : MonoBehaviourPunCallbacks
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // PLACEMENT LOGIC (unchanged)
+    // PLACEMENT LOGIC
     // ══════════════════════════════════════════════════════════════════════
     private void ApplyPlacementLogic(int player, int nodeID)
     {
@@ -286,7 +272,7 @@ public class GameManager : MonoBehaviourPunCallbacks
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // MOVEMENT LOGIC (unchanged)
+    // MOVEMENT LOGIC
     // ══════════════════════════════════════════════════════════════════════
     private void ApplyMovementLogic(int player, int fromNodeID, int toNodeID)
     {
@@ -320,7 +306,7 @@ public class GameManager : MonoBehaviourPunCallbacks
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // REMOVAL PHASE (unchanged except HighlightRemovableCows colour fix)
+    // REMOVAL PHASE
     // ══════════════════════════════════════════════════════════════════════
     private void CheckPlacementPhaseComplete()
     {
@@ -374,7 +360,6 @@ public class GameManager : MonoBehaviourPunCallbacks
 
         int playerToRemove = occupiedNodes.ContainsKey(nodeID) ? occupiedNodes[nodeID] : -1;
 
-        // Primary: dictionary lookup
         if (cowGameObjects.ContainsKey(nodeID))
         {
             Destroy(cowGameObjects[nodeID]);
@@ -382,8 +367,6 @@ public class GameManager : MonoBehaviourPunCallbacks
         }
         else
         {
-            // Fallback: cow was moved here but cowGameObjects wasn't updated.
-            // Try placedNode match first, then proximity.
             BoardNode targetNode = GetNodeByID(nodeID);
             bool destroyed = false;
 
@@ -391,7 +374,7 @@ public class GameManager : MonoBehaviourPunCallbacks
             {
                 if (cow.GetPlacedNode() != null && cow.GetPlacedNode().nodeID == nodeID)
                 {
-                    cowGameObjects.Remove(nodeID); // clean up if stale
+                    cowGameObjects.Remove(nodeID);
                     Destroy(cow.gameObject);
                     destroyed = true;
                     break;
@@ -459,17 +442,15 @@ public class GameManager : MonoBehaviourPunCallbacks
 
         if (winner != 0)
         {
-            // Submit score to leaderboard for the winning player
             StartCoroutine(SubmitWinnerScore(winner));
 
-            string winnerName = winner == 1
-                ? PlayerPrefs.GetString("P1", "Player 1")
-                : PlayerPrefs.GetString("P2", "Player 2");
-
-            ShowWinScreen(winnerName);
+            // Send the winner PLAYER NUMBER over RPC, not a name string.
+            // Each client resolves the display name locally so both machines
+            // always show the correct winner name.
+            ShowWinScreen(winner);
 
             if (PhotonNetwork.IsConnected)
-                photonView.RPC("RPC_ShowWinScreen", RpcTarget.Others, winnerName);
+                photonView.RPC("RPC_ShowWinScreen", RpcTarget.Others, winner);
         }
 
         return winner;
@@ -477,44 +458,54 @@ public class GameManager : MonoBehaviourPunCallbacks
 
     private IEnumerator SubmitWinnerScore(int winner)
     {
-        // Only submit score if the winner is the local player
         if (MyPlayerNumber == winner)
         {
-            // Check if leaderboard reference exists
             if (leaderboard != null)
             {
-                // Add 1 win point to the leaderboard
-                // Make sure your Leaderboard class has this method
-                yield return StartCoroutine(leaderboard.SubmitScoreRoutine(1)); // Add 1 point per win
+                yield return StartCoroutine(leaderboard.SubmitScoreRoutine(1));
                 Debug.Log($"Submitted win to leaderboard for Player {winner}");
             }
             else
             {
                 Debug.LogError("Leaderboard reference is missing in GameManager!");
-
-                // Try to find it if missing
                 leaderboard = FindObjectOfType<Leaderboard>();
                 if (leaderboard != null)
-                {
                     yield return StartCoroutine(leaderboard.SubmitScoreRoutine(1));
-                }
             }
         }
     }
 
-
-    private void ShowWinScreen(string winnerName)
+    // Takes a player NUMBER (1 or 2) so each client can resolve the correct
+    // display name locally — fixes wrong winner name on the remote client.
+    private void ShowWinScreen(int winnerPlayerNumber)
     {
         gameOver = true;
-        if (winPanel != null)
+        if (winPanel == null) return;
+        winPanel.SetActive(true);
+        if (winText == null) return;
+
+        string winnerName;
+        if (!PhotonNetwork.IsConnected)
         {
-            winPanel.SetActive(true);
-            if (winText != null) winText.text = winnerName + " Wins!";
+            // Local / AI game — read from PlayerPrefs
+            winnerName = winnerPlayerNumber == 1
+                ? PlayerPrefs.GetString("P1", "Player 1")
+                : PlayerPrefs.GetString("P2", "Player 2");
         }
+        else
+        {
+            // Online — use Photon nicknames which are synced across both clients
+            var players = PhotonNetwork.PlayerList;
+            winnerName = winnerPlayerNumber == 1
+                ? (players.Length > 0 ? players[0].NickName : "Player 1")
+                : (players.Length > 1 ? players[1].NickName : "Player 2");
+        }
+
+        winText.text = winnerName + " Wins!";
     }
 
     [PunRPC]
-    private void RPC_ShowWinScreen(string winnerName) { ShowWinScreen(winnerName); }
+    private void RPC_ShowWinScreen(int winnerPlayerNumber) { ShowWinScreen(winnerPlayerNumber); }
 
     private bool PlayerHasValidMoves(int player)
     {
@@ -556,7 +547,23 @@ public class GameManager : MonoBehaviourPunCallbacks
     private void UpdatePhaseUI()
     {
         if (phaseText == null) return;
-        phaseText.text = currentPhase == GamePhase.Placement ? "Phase: Placement" : "Phase: Movement";
+
+        if (currentPhase == GamePhase.Placement)
+        {
+            phaseText.text = "Phase: Placement";
+        }
+        else if (player1Flying && currentPlayer == 1)
+        {
+            phaseText.text = "Phase: Flying (Player 1)";
+        }
+        else if (player2Flying && currentPlayer == 2)
+        {
+            phaseText.text = "Phase: Flying (Player 2)";
+        }
+        else
+        {
+            phaseText.text = "Phase: Movement";
+        }
     }
 
     private void UpdateRemovalUI(bool active)
