@@ -7,13 +7,13 @@ EditorBuildSettings:
   m_Scenes:
   - enabled: 1
     path: Assets/Scenes/StartScene.unity
-    guid: 711dd177e44834e4f9a53964d8be5a8e
+    guid: 2678ea38e9998bc4ca41aa1339bcdbb6
+  - enabled: 1
+    path: Assets/Scenes/AI Scene.unity
+    guid: a0a45899ea5d3364198be693b0470f45
   - enabled: 1
     path: Assets/Scenes/LobbyScene.unity
     guid: dba9bd76709a8cc4880be4eb8e0a476b
-  - enabled: 1
-    path: Assets/Scenes/AIScene.unity
-    guid: feb89281779b14441bbff10e18ba5116
   - enabled: 1
     path: Assets/Scenes/GameScene.unity
     guid: 2cda990e2423bbf4892e6590ba056729
