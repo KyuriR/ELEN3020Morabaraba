@@ -159,7 +159,7 @@ public class GameManagerTests
         // Arrange
         GameObject cow;
 
-        // Simulate all placements
+        // Simulate all placements-->Act 0
         for (int i = 0; i < 12; i++)
         {
             cow = new GameObject();

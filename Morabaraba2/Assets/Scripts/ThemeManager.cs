@@ -19,6 +19,9 @@ public class ThemeManager : MonoBehaviour
     public CowSpawner cowSpawner1;
     public CowSpawner cowSpawner2;
 
+    [Header("HintManager")] 
+    public HintAppearing hintManager;
+
     [Header("Default Theme if nothing saved (0=Traditional 1=Anime 2=StarWars)")]
     public int defaultThemeIndex = 0;
 

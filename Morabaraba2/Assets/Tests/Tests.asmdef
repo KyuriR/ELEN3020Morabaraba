@@ -6,7 +6,8 @@
         "UnityEditor.TestRunner",
         "PhotonUnityNetworking",
         "Game",
-        "PhotonRealtime"
+        "PhotonRealtime",
+        "Unity.TextMeshPro"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
