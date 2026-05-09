@@ -15,6 +15,8 @@ public class TurnUIManager : MonoBehaviour
         player1Name = PlayerPrefs.GetString("P1", "Player 1");
         player2Name = PlayerPrefs.GetString("P2", "Player 2");
 
+        Debug.Log($"[TurnUI] P1={player1Name}  P2={player2Name}  IsAIGame={PlayerPrefs.GetInt("IsAIGame", 0)}");
+
         if (PhotonNetwork.IsConnected && PhotonNetwork.PlayerList.Length >= 1)
         {
             player1Name = PhotonNetwork.PlayerList[0].NickName;
