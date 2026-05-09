@@ -69,10 +69,11 @@ public class Leaderboard : MonoBehaviour
                 
                 LootLockerLeaderboardMember[] members = response.items;
 
-                for( int i = 0; i < members.Length; i++)
+                for (int i = 0; i < members.Length; i++)
                 {
-                    tempPlayerNames += members[i].rank + " . ";
-                    if (members[i].player.name != "")
+                    // Add rank and name on the same line, then line break
+                    tempPlayerNames += members[i].rank + ". ";
+                    if (members[i].player.name != "  ")
                     {
                         tempPlayerNames += members[i].player.name;
                     }
@@ -80,9 +81,12 @@ public class Leaderboard : MonoBehaviour
                     {
                         tempPlayerNames += members[i].player.id;
                     }
+                    tempPlayerNames += "\n"; // Line break after each player name
+
+                    // Add score with line break
                     tempPlayerScores += members[i].score + "\n";
-                    tempPlayerScores +=  "\n";
                 }
+
                 done = true;
                 playerNames.text = tempPlayerNames;
                 playerScore.text = tempPlayerScores;
